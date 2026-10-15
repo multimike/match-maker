@@ -32,7 +32,8 @@ not court time:
 
 ## The evening
 
-- **Fixed-length rounds** (12–15 min). Everyone changes court at the same time.
+- **Fixed-length rounds** (12–15 min) with a "last 2 minutes" warning and a buzzer.
+  Everyone changes court at the same time.
 - The organiser opens an evening. Players check in. Each round: generate, show the courts,
   play, enter results.
 - Players can check in and out at any time (late arrivals, early leavers).
@@ -56,7 +57,13 @@ not court time:
   shown as provisional until then.
 - **Placement:** players with uncertain ratings are preferably matched against players
   with well-known ratings, which speeds up convergence.
-- **Result entry:** one tap, "we won", with an optional score, by either side.
+- **The buzzer decides.** Play one normal game to 21. When the buzzer goes, the side in
+  the lead wins. A level score is settled by one deciding point, so there are no draws. A
+  game that finishes before the buzzer decides the round, and the remaining minutes are free
+  play.
+- **Result entry:** one tap for the winning side, by either side. The score at the buzzer
+  is optional; if it's entered, the winner follows from it, and the rating can use the
+  share of points won (a small gain in the simulation).
 - Players never set their own level.
 
 ## Matchmaking
@@ -141,13 +148,32 @@ a PWA is optional).
 - Fixed pairs and level adjustments are handled by the organiser, not in player
   onboarding.
 
+## Look and feel
+
+Stylish and inviting, slightly playful, and unmistakably badminton:
+
+- **Colours:** a confident, fresh palette rather than grey admin-panel tones, for example
+  court green or teal with shuttle white and one bright, sporty accent. It must stay
+  readable on a TV across the hall and on a phone in a bright sports hall.
+- **Badminton graphics:** shuttlecocks, rackets and court lines as icons and decoration.
+  For example, a shuttlecock as the app icon and loading animation, and a top-down court
+  drawing in the court cards, with players placed on their halves.
+- **Playful touches:** friendly microcopy ("Court 3 is calling!"), coloured initial
+  avatars, the energy levels as emoji, and small celebrations when results come in. They
+  should never get in the way of the 3-second check-in.
+- **Court display:** big, bold and scannable from a distance. Court numbers and names
+  first, decoration second.
+
 ## Architecture
 
-- Plain HTML/CSS/JS PWA with no build step, like
-  [sport-timer](https://github.com/multimike/sport-timer). GitHub Pages at
-  `match.ikanos.se`.
-- The engine is a pure JS module with no DOM or storage access, so it can be tested and
-  simulated in isolation. The organiser's device generates the rounds.
+- **React + Vite + TypeScript** PWA. The app has several screens sharing live state (check-in, court
+  display, organiser, results), the playful graphics work well as reusable components, and
+  Vite bundles the Firebase SDK and the service worker. The trade-off compared with
+  sport-timer's no-build setup: a GitHub Action builds and deploys to GitHub Pages at
+  `match.ikanos.se` on every push to `main`.
+- The engine (`src/engine/`) is plain TypeScript with no React, DOM or storage access, so it runs
+  unchanged in the app, the tests and the Node simulation. The organiser's device generates
+  the rounds.
 - **Firebase Firestore** (free Spark plan) for real-time sync between the organiser's
   device and players' phones, and for history across weeks. Anonymous auth plus security
   rules. Supabase's free tier was ruled out: it pauses projects after a week without
@@ -172,12 +198,8 @@ a PWA is optional).
 
 ## Plan
 
-1. **Engine and simulation.** About 28 made-up members across both groups, each with a
-   hidden "true level", over 20 evenings. Measure per player: share of challenging
-   matches, partner fit, singles when wanted, freshness and rests. Scenarios: 10–40
-   players on 6 or 8 courts. Compare seeding: all equal, group seed, and group seed with
-   a few organiser nudges. Tune the weights; the simulation then becomes the engine's
-   tests.
+1. **Engine and simulation.** Done: the engine is in `src/engine/`, and the simulation
+   and its findings are in [simulation.md](simulation.md).
 2. **Organiser app** on a single device: members, check-in, round generation, court
    display, result entry and the round timer.
 3. **Firestore sync and QR check-in** on players' phones.
@@ -188,4 +210,3 @@ a PWA is optional).
 - App language: Swedish, English or both?
 - Round length (12 or 15 min) and evening length.
 - One rating for both singles and doubles, or separate ratings?
-- Rating details (adjustment size, provisional threshold), to tune in the simulation.

@@ -1,0 +1,17 @@
+{
+  "name": "match-maker",
+  "private": true,
+  "description": "Matchmaking for a badminton club's shared weekly match night",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc",
+    "sim": "node sim/simulate.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}
