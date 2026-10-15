@@ -1,0 +1,502 @@
+/* Tokens and base styles. The palette comes from the hall: the petrol floor around the courts,
+   the green court mats with white lines, white feather shuttles, and the yellow of a nylon
+   shuttle as the one bright accent: it marks what to do now, court numbers and winners. */
+
+:root {
+  --hall: #0e3b43;
+  --hall-deep: #092a30;
+  --court: #17825a;
+  --court-deep: #0f6646;
+  --line: #ffffff;
+  --shuttle: #f2f6f1;
+  --paper: #ffffff;
+  --ink: #0e2a2e;
+  --ink-soft: #4a6468;
+  --rule: #d3ded9;
+  --nylon: #ffd43b;
+  --nylon-deep: #d4a800;
+  --smash: #e5484d;
+  --smash-deep: #b8343a;
+
+  --font-display: 'Anybody Variable', 'Arial Narrow', system-ui, sans-serif;
+  --font-text: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+
+  --radius-court: 6px;
+  --radius-control: 14px;
+  --radius-panel: 22px;
+  --gutter: clamp(16px, 3vw, 32px);
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--shuttle);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: 1rem;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+p,
+ul,
+ol {
+  margin: 0;
+}
+
+ul,
+ol {
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Controls ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 46px;
+  padding: 0.6em 1.15em;
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  transition: transform 80ms ease, box-shadow 80ms ease, background-color 120ms ease;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* The primary action: a chunky yellow button that presses down like a sticker. */
+.button--primary {
+  background: var(--nylon);
+  color: var(--ink);
+  box-shadow: 0 3px 0 var(--nylon-deep);
+}
+
+.button--primary:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--nylon-deep);
+}
+
+.button--quiet {
+  border-color: var(--rule);
+  background: var(--paper);
+}
+
+.button--quiet:hover:not(:disabled) {
+  border-color: var(--court);
+}
+
+.button--danger {
+  background: var(--smash);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--smash-deep);
+}
+
+.button--danger-quiet {
+  color: var(--smash-deep);
+}
+
+.button--danger-quiet:hover {
+  background: color-mix(in srgb, var(--smash) 10%, transparent);
+}
+
+.button--big {
+  min-height: 56px;
+  padding: 0.75em 1.4em;
+  font-size: 1.125rem;
+}
+
+.button--wide {
+  width: 100%;
+}
+
+.link-button {
+  padding: 0.35em 0;
+  border: 0;
+  background: none;
+  color: var(--court-deep);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.input {
+  min-height: 46px;
+  width: 100%;
+  padding: 0.55em 0.8em;
+  border: 2px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.input:focus-visible {
+  outline: none;
+  border-color: var(--court);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--court) 25%, transparent);
+}
+
+.input--number {
+  width: 7.5em;
+  font-variant-numeric: tabular-nums;
+}
+
+.input--search {
+  width: 16rem;
+  max-width: 100%;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: calc(var(--radius-control) + 4px);
+  background: color-mix(in srgb, var(--hall) 9%, var(--shuttle));
+}
+
+.segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  min-height: 40px;
+  padding: 0.4em 0.95em;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.segment[aria-checked='true'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 2px 0 var(--rule);
+}
+
+.segment[aria-checked='true'] .pref-icon {
+  color: var(--court);
+}
+
+.segmented--small .segment {
+  min-height: 36px;
+  font-size: 0.9375rem;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+}
+
+.stepper-button {
+  width: 48px;
+  height: 46px;
+  border: 0;
+  background: none;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.stepper-button:disabled {
+  opacity: 0.3;
+}
+
+.stepper-value {
+  min-width: 2.5ch;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 700;
+}
+
+.field-hint {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.toggle input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--court);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  padding: 0.2em 0.75em;
+  border: 2px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.chip--button {
+  border-style: dashed;
+  color: var(--court-deep);
+}
+
+.chip--button:hover {
+  border-color: var(--court);
+}
+
+.avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  color: var(--ink);
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.avatar--big {
+  width: 4.5rem;
+  height: 4.5rem;
+  font-size: 1.6rem;
+}
+
+.pref-icon {
+  flex: none;
+  color: var(--ink-soft);
+  vertical-align: middle;
+}
+
+/* ---------- Dialogs ---------- */
+
+.dialog {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-panel);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgb(9 42 48 / 35%);
+}
+
+.dialog::backdrop {
+  background: rgb(9 42 48 / 55%);
+  backdrop-filter: blur(3px);
+}
+
+.dialog-body {
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.dialog-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-stretch: 115%;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.dialog-actions-start {
+  margin-right: auto;
+}
+
+.dialog--sheet .dialog-title {
+  font-size: 2rem;
+  text-align: center;
+}
+
+.sheet-who {
+  display: flex;
+  justify-content: center;
+  order: -1;
+}
+
+.confirm-message {
+  font-size: 1.0625rem;
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.rating-nudge {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.prov-tag {
+  padding: 0.05em 0.5em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--nylon) 45%, transparent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.energy-choices {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.energy {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 6px;
+  border: 2px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  font-weight: 700;
+}
+
+.energy[aria-checked='true'] {
+  border-color: var(--court);
+  background: color-mix(in srgb, var(--court) 10%, var(--paper));
+  box-shadow: inset 0 0 0 2px var(--court);
+}
+
+.energy-emoji {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+/* ---------- Celebration ---------- */
+
+.confetti {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.confetti-piece {
+  position: absolute;
+  animation: burst 1.3s cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay) both;
+}
+
+@keyframes burst {
+  0% {
+    transform: translate(0, 0) rotate(0) scale(0.3);
+    opacity: 1;
+  }
+  70% {
+    transform: translate(var(--dx), var(--dy)) rotate(var(--spin)) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), calc(var(--dy) + 60px)) rotate(var(--spin)) scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .confetti {
+    display: none;
+  }
+}

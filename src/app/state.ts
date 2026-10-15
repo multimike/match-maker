@@ -1,0 +1,332 @@
+// Everything the organiser can do, as one reducer over AppState. It calls the engine
+// (planRound, recordRound, recordHistory, rateRound) and stays pure: time, randomness and new
+// ids come in through `env`, so the tests can play a whole evening with a seeded random.
+
+import { newEvening, planRound, recordHistory, recordRound, type Energy, type Player, type Pref } from '../engine/engine.ts';
+import { rateRound, startingRating, type Ratings } from '../engine/rating.ts';
+import type { Random } from '../engine/random.ts';
+import {
+  dayNumber,
+  isHere,
+  latestRound,
+  localDate,
+  openSession,
+  tonightsPlayers,
+  type AppState,
+  type CheckIn,
+  type CourtResult,
+  type Group,
+  type Member,
+  type Round,
+  type Session,
+} from './model.ts';
+import { addTime, finishTimer, newTimer, pauseTimer, resumeTimer, startTimer } from './timer.ts';
+
+export interface Env {
+  now: number;
+  random: Random;
+  id: () => string;
+}
+
+export interface MemberInput {
+  name: string;
+  group: Group;
+  pref: Pref;
+  /** null removes the partner. */
+  partnerId: string | null;
+  partnerShare: number;
+}
+
+export type Action =
+  /** `id` lets the caller check the new member in straight away. */
+  | { type: 'member/add'; member: MemberInput; id?: string }
+  | { type: 'member/update'; id: string; member: MemberInput; rating?: number }
+  | { type: 'member/delete'; id: string }
+  | { type: 'members/import'; members: Member[] }
+  | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number }
+  | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null }
+  | { type: 'session/close' }
+  | { type: 'checkIn'; memberId: string }
+  | { type: 'checkIn/update'; memberId: string; energy?: Energy; restOk?: boolean; skip?: boolean }
+  | { type: 'checkOut'; memberId: string }
+  | { type: 'round/plan' }
+  | { type: 'round/discard' }
+  | { type: 'round/start' }
+  | { type: 'timer/pause' }
+  | { type: 'timer/resume' }
+  | { type: 'timer/add'; ms: number }
+  | { type: 'timer/finish' }
+  | { type: 'result/set'; roundId: string; court: number; result: CourtResult }
+  | { type: 'round/save' }
+  | { type: 'state/replace'; state: AppState };
+
+export function reduce(state: AppState, action: Action, env: Env): AppState {
+  switch (action.type) {
+    case 'member/add': {
+      const name = action.member.name.trim();
+      if (!name) return state;
+      const member: Member = {
+        id: action.id ?? env.id(),
+        name,
+        group: action.member.group,
+        rating: startingRating(action.member.group),
+        matches: 0,
+        pref: action.member.pref,
+        status: 'confirmed',
+        createdAt: env.now,
+      };
+      const members = [...state.members, member];
+      return { ...state, members: linkPartner(members, member.id, action.member.partnerId, action.member.partnerShare) };
+    }
+
+    case 'member/update': {
+      const name = action.member.name.trim();
+      if (!name) return state;
+      const members = state.members.map((m) => {
+        if (m.id !== action.id) return m;
+        const { group, pref } = action.member;
+        // Before any rated match the rating is just the group's starting point.
+        const regrouped = m.matches === 0 && group !== m.group ? startingRating(group) : m.rating;
+        return { ...m, name, group, pref, rating: action.rating ?? regrouped };
+      });
+      return { ...state, members: linkPartner(members, action.id, action.member.partnerId, action.member.partnerShare) };
+    }
+
+    case 'member/delete': {
+      const { id } = action;
+      const members = state.members
+        .filter((m) => m.id !== id)
+        .map((m) => (m.partnerId === id ? withoutPartner(m) : m));
+      const met = Object.fromEntries(Object.entries(state.history.met).filter(([key]) => !key.split('|').includes(id)));
+      const sessions = state.sessions.map((s) => {
+        if (s.state !== 'open' || !s.checkIns[id]) return s;
+        const { [id]: _removed, ...checkIns } = s.checkIns;
+        return { ...s, checkIns };
+      });
+      return { ...state, members, sessions, history: { met } };
+    }
+
+    case 'members/import': {
+      const known = new Set(state.members.map((m) => m.id));
+      return { ...state, members: [...state.members, ...action.members.filter((m) => !known.has(m.id))] };
+    }
+
+    case 'session/open': {
+      if (openSession(state)) return state;
+      const date = localDate(env.now);
+      const session: Session = {
+        id: env.id(),
+        date,
+        day: dayNumber(date),
+        courts: action.courts,
+        roundMinutes: action.roundMinutes,
+        softLimit: action.softLimit,
+        cap: null,
+        state: 'open',
+        checkIns: {},
+        rounds: [],
+        evening: newEvening(),
+        openedAt: env.now,
+      };
+      return { ...state, sessions: [...state.sessions, session] };
+    }
+
+    case 'session/update':
+      return updateSession(state, (s) => ({
+        ...s,
+        courts: action.courts ?? s.courts,
+        roundMinutes: action.roundMinutes ?? s.roundMinutes,
+        softLimit: action.softLimit === null ? undefined : action.softLimit ?? s.softLimit,
+        // A round that hasn't started yet takes the new length.
+        rounds: action.roundMinutes === undefined ? s.rounds : s.rounds.map((r) =>
+          r.status === 'planned' ? { ...r, timer: newTimer(action.roundMinutes!) } : r),
+      }));
+
+    case 'session/close':
+      // Rounds without saved results are dropped: nothing from them reached the ratings.
+      return updateSession(state, (s) => ({
+        ...s,
+        state: 'closed',
+        closedAt: env.now,
+        rounds: s.rounds.filter((r) => r.status === 'done').map(({ ratingsBefore: _gone, ...r }) => ({ ...r, players: [] })),
+      }));
+
+    case 'checkIn': {
+      const member = state.members.find((m) => m.id === action.memberId);
+      if (!member) return state;
+      return updateSession(state, (s) => {
+        const known = s.checkIns[member.id];
+        const checkIn: CheckIn = known
+          ? { ...known, leftAt: undefined }
+          : { memberId: member.id, energy: 'normal', restOk: false, skip: false, arrivedAt: env.now, startRating: member.rating };
+        return { ...s, checkIns: { ...s.checkIns, [member.id]: checkIn } };
+      });
+    }
+
+    case 'checkIn/update':
+      return updateCheckIn(state, action.memberId, (c) => {
+        const energy = action.energy ?? c.energy;
+        return {
+          ...c,
+          energy,
+          restOk: energy === 'easy' ? action.restOk ?? c.restOk : false,
+          skip: action.skip ?? c.skip,
+        };
+      });
+
+    case 'checkOut':
+      return updateCheckIn(state, action.memberId, (c) => ({ ...c, leftAt: env.now, skip: false }));
+
+    case 'round/plan': {
+      const session = openSession(state);
+      const latest = latestRound(session);
+      if (!session || latest?.status === 'playing') return state;
+      const players = tonightsPlayers(state, session);
+      if (players.filter((p) => !p.skip).length < 2) return state;
+      const plan = planRound({
+        players,
+        courts: session.courts,
+        evening: session.evening,
+        history: state.history,
+        today: session.day,
+        random: env.random,
+      });
+      const round: Round = {
+        id: env.id(),
+        number: plan.round,
+        courts: plan.courts,
+        resting: plan.resting,
+        players,
+        status: 'planned',
+        timer: newTimer(session.roundMinutes),
+        results: plan.courts.map(() => ({ winner: null })),
+        plannedAt: env.now,
+      };
+      // Planning again replaces a round that hasn't started.
+      const rounds = latest?.status === 'planned' ? [...session.rounds.slice(0, -1), round] : [...session.rounds, round];
+      return updateSession(state, (s) => ({ ...s, rounds }));
+    }
+
+    case 'round/discard':
+      return updateSession(state, (s) => {
+        const latest = latestRound(s);
+        return latest && latest.status !== 'done' ? { ...s, rounds: s.rounds.slice(0, -1) } : s;
+      });
+
+    case 'round/start':
+      return updateSession(state, (s) => {
+        const latest = latestRound(s);
+        if (latest?.status !== 'planned') return s;
+        // "Skip next round" is used up by the round that starts.
+        const skipped = new Set(latest.players.filter((p) => p.skip).map((p) => p.id));
+        const checkIns = Object.fromEntries(Object.entries(s.checkIns).map(([id, c]) =>
+          [id, skipped.has(id) ? { ...c, skip: false } : c]));
+        const round: Round = { ...latest, status: 'playing', timer: startTimer(latest.timer, env.now) };
+        return { ...s, checkIns, rounds: [...s.rounds.slice(0, -1), round] };
+      });
+
+    case 'timer/pause':
+      return updatePlaying(state, (r) => ({ ...r, timer: pauseTimer(r.timer, env.now) }));
+    case 'timer/resume':
+      return updatePlaying(state, (r) => ({ ...r, timer: resumeTimer(r.timer, env.now) }));
+    case 'timer/add':
+      return updatePlaying(state, (r) => ({ ...r, timer: addTime(r.timer, action.ms, env.now) }));
+    case 'timer/finish':
+      return updatePlaying(state, (r) => ({ ...r, timer: finishTimer(r.timer, env.now) }));
+
+    case 'result/set': {
+      const session = openSession(state);
+      const round = session?.rounds.find((r) => r.id === action.roundId);
+      if (!session || !round || !round.courts[action.court]) return state;
+      const results = round.results.map((r, i) => (i === action.court ? action.result : r));
+      if (round.status === 'playing') return replaceRound(state, { ...round, results });
+      if (round.status !== 'done' || !isLastDone(session, round) || !round.ratingsBefore) return state;
+      // Correcting the latest saved round: rate it again from the ratings it started from.
+      const ratings = rateRound({ ...ratingsOf(state.members, round.players), ...round.ratingsBefore }, round, results.map((r) => r.winner));
+      return replaceRound({ ...state, members: withRatings(state.members, ratings, round) }, { ...round, results });
+    }
+
+    case 'round/save': {
+      const session = openSession(state);
+      const round = latestRound(session);
+      if (!session || round?.status !== 'playing') return state;
+      const ratings = ratingsOf(state.members, round.players);
+      const onCourt = round.courts.flatMap((c) => c.sides.flat());
+      const ratingsBefore = Object.fromEntries(onCourt.map((id) => [id, ratings[id]]));
+      const rated = rateRound(ratings, round, round.results.map((r) => r.winner));
+      const saved: Round = { ...round, status: 'done', ratingsBefore, finishedAt: env.now };
+      return {
+        ...state,
+        members: withRatings(state.members, rated, round),
+        history: recordHistory(state.history, round, session.day),
+        sessions: state.sessions.map((s) => s.id !== session.id ? s : {
+          ...s,
+          evening: recordRound(s.evening, round, round.players),
+          rounds: [...s.rounds.slice(0, -1), saved],
+        }),
+      };
+    }
+
+    case 'state/replace':
+      return action.state;
+  }
+}
+
+function withoutPartner(m: Member): Member {
+  const { partnerId: _id, partnerShare: _share, ...rest } = m;
+  return rest;
+}
+
+// Competition pairs are kept on both partners. Whoever either of them was paired with before is
+// let go.
+function linkPartner(members: Member[], id: string, partnerId: string | null, share: number): Member[] {
+  const current = members.find((m) => m.id === id);
+  if (!current || partnerId === id || (partnerId !== null && !members.some((m) => m.id === partnerId))) return members;
+  const involved = new Set([id, partnerId, current.partnerId]);
+  return members.map((m) => {
+    if (m.id === id) return partnerId === null ? withoutPartner(m) : { ...m, partnerId, partnerShare: share };
+    if (m.id === partnerId) return { ...m, partnerId: id, partnerShare: share };
+    if (m.partnerId !== undefined && (involved.has(m.partnerId) || involved.has(m.id))) return withoutPartner(m);
+    return m;
+  });
+}
+
+function updateSession(state: AppState, change: (s: Session) => Session): AppState {
+  const session = openSession(state);
+  if (!session) return state;
+  const next = change(session);
+  return next === session ? state : { ...state, sessions: state.sessions.map((s) => (s.id === session.id ? next : s)) };
+}
+
+function updateCheckIn(state: AppState, memberId: string, change: (c: CheckIn) => CheckIn): AppState {
+  return updateSession(state, (s) => {
+    const checkIn = s.checkIns[memberId];
+    return isHere(checkIn) ? { ...s, checkIns: { ...s.checkIns, [memberId]: change(checkIn) } } : s;
+  });
+}
+
+function updatePlaying(state: AppState, change: (r: Round) => Round): AppState {
+  const round = latestRound(openSession(state));
+  return round?.status === 'playing' ? replaceRound(state, change(round)) : state;
+}
+
+function replaceRound(state: AppState, round: Round): AppState {
+  return updateSession(state, (s) => ({ ...s, rounds: s.rounds.map((r) => (r.id === round.id ? round : r)) }));
+}
+
+function isLastDone(session: Session, round: Round): boolean {
+  return session.rounds.filter((r) => r.status === 'done').at(-1)?.id === round.id;
+}
+
+// Current ratings for everyone, plus the round's own snapshot for anyone deleted since.
+function ratingsOf(members: Member[], players: Player[]): Ratings {
+  const ratings: Ratings = {};
+  for (const p of players) ratings[p.id] = { rating: p.rating, matches: p.matches ?? 0 };
+  for (const m of members) ratings[m.id] = { rating: m.rating, matches: m.matches };
+  return ratings;
+}
+
+function withRatings(members: Member[], ratings: Ratings, round: Round): Member[] {
+  const onCourt = new Set(round.courts.flatMap((c) => c.sides.flat()));
+  return members.map((m) => (onCourt.has(m.id) ? { ...m, ...ratings[m.id] } : m));
+}

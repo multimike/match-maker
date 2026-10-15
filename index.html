@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0e3b43" />
+    <meta name="description" content="Matchmaking for a badminton club's weekly match night." />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <title>Matchmaker</title>
+    <style>
+      /* Shown until the app starts: a bobbing shuttle. */
+      body { margin: 0; background: #0e3b43; }
+      .boot { position: fixed; inset: 0; display: grid; place-items: center; }
+      .boot svg { width: 72px; height: 72px; animation: boot 0.9s ease-in-out infinite alternate; }
+      @keyframes boot { to { transform: translateY(-18px) rotate(-12deg); } }
+      @media (prefers-reduced-motion: reduce) { .boot svg { animation: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <g transform="rotate(40 32 32)">
+            <path d="M24.5 41 L10 10.5 Q32 2.5 54 10.5 L39.5 41 Z" fill="#fff" />
+            <ellipse cx="32" cy="10.4" rx="22" ry="4.2" fill="#dfe8e4" />
+            <rect x="23.5" y="39.5" width="17" height="5" rx="1.2" fill="#ffd43b" />
+            <path d="M23.5 44 L40.5 44 Q40.5 55.5 32 55.5 Q23.5 55.5 23.5 44 Z" fill="#fff" />
+          </g>
+        </svg>
+      </div>
+    </div>
+    <script type="module" src="/src/app/main.tsx"></script>
+  </body>
+</html>

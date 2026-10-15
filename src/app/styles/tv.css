@@ -1,0 +1,278 @@
+/* The TV display. Everything is sized from the screen's shorter side (vmin) or from each card
+   (cqw), so it fills a TV, a laptop window or a tablet in either orientation the same way. */
+
+.tv {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 2.2vmin;
+  height: 100dvh;
+  padding: 2.4vmin 2.6vmin;
+  overflow: hidden;
+  background: var(--hall);
+  background-image: radial-gradient(ellipse at 50% 120%, rgb(23 130 90 / 22%), transparent 60%);
+  color: var(--line);
+}
+
+.tv :focus-visible {
+  outline-color: var(--nylon);
+}
+
+.tv-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.2vmin 1.6vmin;
+  font-size: 9vmin;
+}
+
+.tv-mark {
+  display: block;
+}
+
+.tv-titles {
+  min-width: 0;
+}
+
+.tv-title {
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-size: 6.2vmin;
+  font-stretch: 122%;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tv-subtitle {
+  margin-top: 0.6vmin;
+  color: rgb(255 255 255 / 85%);
+  font-size: 3vmin;
+  font-weight: 700;
+}
+
+.tv-clock {
+  padding: 0.6vmin 1.6vmin;
+  border-radius: 2.4vmin;
+  background: rgb(255 255 255 / 9%);
+  font-family: var(--font-display);
+  font-size: 11vmin;
+  font-stretch: 80%;
+  font-weight: 850;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* After the round the clock and its track keep their space, so the courts stay put. */
+.tv-clock[data-done],
+.tv-track[data-done] {
+  visibility: hidden;
+}
+
+.tv-track {
+  grid-column: 1 / -1;
+  height: 0.9vmin;
+  overflow: hidden;
+  border-radius: 1vmin;
+  background: rgb(255 255 255 / 14%);
+}
+
+.tv-fill {
+  display: block;
+  height: 100%;
+  background: var(--nylon);
+  transform-origin: left;
+  transition: transform 200ms linear;
+}
+
+.tv[data-phase='ready'] .tv-subtitle,
+.tv[data-phase='warning'] .tv-subtitle {
+  color: var(--nylon);
+}
+
+.tv[data-phase='warning'] .tv-clock {
+  background: var(--nylon);
+  color: var(--ink);
+  animation: flash 0.6s ease-in-out 3;
+}
+
+.tv[data-phase='over'] .tv-clock {
+  background: var(--smash);
+}
+
+.tv[data-phase='over'] .tv-title {
+  color: var(--nylon);
+}
+
+.tv[data-phase='over'] .tv-fill {
+  background: var(--smash);
+}
+
+.tv[data-phase='paused'] .tv-clock {
+  opacity: 0.55;
+}
+
+@keyframes flash {
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.tv-main {
+  position: relative;
+  display: grid;
+  min-height: 0;
+}
+
+/* Sized by the screen, not by the courts inside, so fitting the grid can't feed back on itself. */
+.tv-courts {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.tv-grid {
+  display: grid;
+  justify-content: center;
+  align-content: center;
+}
+
+.tv-big-shuttle {
+  place-self: center;
+  opacity: 0.9;
+  animation: float 3.2s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+  to {
+    transform: translateY(-3vmin) rotate(-6deg);
+  }
+}
+
+/* Before the first round: everyone who is here, so arrivals can see they're checked in. */
+.tv-here {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3vmin;
+}
+
+.tv-here-count {
+  color: var(--nylon);
+  font-family: var(--font-display);
+  font-size: 6vmin;
+  font-stretch: 115%;
+  font-weight: 850;
+}
+
+.tv-here-list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.4vmin 1.2vmin;
+  max-width: 92vw;
+}
+
+.tv-here-tag {
+  font-size: 3.4vmin;
+  box-shadow: 0 0.5vmin 0 rgb(0 0 0 / 20%);
+}
+
+.tv-resting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1vmin 1.5vmin;
+  padding: 1.2vmin 1.6vmin;
+  border-radius: 2vmin;
+  background: rgb(0 0 0 / 18%);
+  font-size: 2.8vmin;
+}
+
+.tv-resting-title {
+  font-weight: 800;
+}
+
+.tv-resting-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1vmin 1.4vmin;
+}
+
+.tv-resting-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-weight: 700;
+}
+
+.tv-resting-name .avatar {
+  width: 1.6em;
+  height: 1.6em;
+  font-size: 0.6em;
+}
+
+.tv-start {
+  position: absolute;
+  right: 2.6vmin;
+  bottom: 2.4vmin;
+  z-index: 20;
+  display: grid;
+  gap: 0.3em;
+  padding: 1.6vmin 2.6vmin;
+  border: 0;
+  border-radius: 2vmin;
+  background: var(--nylon);
+  color: var(--ink);
+  box-shadow: 0 0.6vmin 0 var(--nylon-deep), 0 2vmin 5vmin rgb(0 0 0 / 35%);
+  text-align: left;
+}
+
+.tv-start-title {
+  font-family: var(--font-display);
+  font-size: 3vmin;
+  font-weight: 850;
+}
+
+.tv-start-hint {
+  font-size: 2vmin;
+  font-weight: 600;
+}
+
+.tv-controls {
+  position: absolute;
+  top: 2vmin;
+  right: 2vmin;
+  z-index: 20;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.tv-controls[data-visible] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tv-control {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 55%);
+  color: var(--line);
+  font-weight: 700;
+}
+
+.tv .confetti {
+  top: 45%;
+}
+
+.tv .confetti svg {
+  width: 4vmin;
+  height: 4vmin;
+}

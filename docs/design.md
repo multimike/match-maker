@@ -1,6 +1,7 @@
 # Matchmaker: design notes
 
-Decisions so far, from the first design discussion (October 2026). Nothing is built yet.
+Decisions so far, from the first design discussion (October 2026) and from building the
+organiser app.
 
 ## Problem
 
@@ -196,17 +197,43 @@ Stylish and inviting, slightly playful, and unmistakably badminton:
 
 "Time since last met" is derived from rounds and results.
 
+## Organiser app (step 2)
+
+How the first version of the app works, where it settles details the notes above left open:
+
+- **One device.** The organiser's laptop or tablet runs everything. The TV view (`#/tv`)
+  opens in a second window on the same device, to drag to the TV; the two windows stay in
+  step through the browser's storage. With a tablet mirrored to the TV, the organiser
+  switches between the TV view and the other screens.
+- **Sound** (2-minute warning, buzzer, a whistle when a round starts) plays from the TV
+  window once its "Start TV mode" button has been tapped, otherwise from the organiser's
+  window, never both.
+- **Rounds:** make a round, shuffle again if needed, start it (this starts the timer), then
+  tap the winning side per court. A round's results are saved together, which updates
+  ratings (`rateRound`), the evening (`recordRound`) and the history (`recordHistory`).
+  The latest saved round can be corrected until the next one is saved.
+- **Scores** are optional and stored with the result. Ratings use only the winner for now;
+  the simulation found that the score adds little.
+- **"Skip next round"** is used up when the next round starts. Rounds that were never saved
+  are dropped when the evening ends.
+- **Data** is kept in the browser's localStorage behind `src/app/storage.ts`, the one module
+  to swap for Firestore in step 3. Settings has a backup download and restore.
+- **Updates** to the app wait for the organiser to reload, so a new version never restarts
+  the app mid-round.
+- **Language:** Swedish and English, switchable in the app; all text is in
+  `src/app/strings.ts`.
+
 ## Plan
 
 1. **Engine and simulation.** Done: the engine is in `src/engine/`, and the simulation
    and its findings are in [simulation.md](simulation.md).
 2. **Organiser app** on a single device: members, check-in, round generation, court
-   display, result entry and the round timer.
+   display, result entry and the round timer. Done: the app is in `src/app/`; see the
+   section above and the README.
 3. **Firestore sync and QR check-in** on players' phones.
 4. **Later, if needed:** pre-registration, then soft or hard cap.
 
 ## Open questions
 
-- App language: Swedish, English or both?
 - Round length (12 or 15 min) and evening length.
 - One rating for both singles and doubles, or separate ratings?
