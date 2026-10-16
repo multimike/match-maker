@@ -236,6 +236,21 @@
   text-transform: uppercase;
 }
 
+.phone-friendly {
+  justify-self: start;
+  padding: 0.2em 0.75em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--court) 14%, var(--paper));
+  color: var(--court-deep);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.phone-friendly--light {
+  background: rgb(255 255 255 / 12%);
+  color: var(--line);
+}
+
 .phone-checkout {
   justify-self: start;
 }

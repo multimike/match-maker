@@ -65,6 +65,8 @@ export interface Round {
   resting: string[];
   /** The players as planRound saw them; recordRound needs the same list. */
   players: Player[];
+  /** Courts the evening had when the round was made (missing in rounds from before). */
+  courtsAvailable?: number;
   status: RoundStatus;
   timer: Timer;
   /** One per court. */
@@ -87,6 +89,8 @@ export interface Session {
   softLimit?: number;
   /** Hard cap, not used yet: see "Overbooking" in docs/design.md. */
   cap: null;
+  /** Friendly evening: same matchmaking, but results don't change ratings or the history. */
+  friendly?: boolean;
   state: 'open' | 'closed';
   checkIns: Record<string, CheckIn>;
   rounds: Round[];

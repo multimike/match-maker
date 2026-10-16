@@ -9,7 +9,7 @@ import { Shuttle } from './components/Shuttle.tsx';
 import { ConfirmProvider } from './components/ui.tsx';
 import { useCloud } from './cloud/context.ts';
 import { useOnline, useRoute, useWakeLock, type Route } from './hooks.ts';
-import { latestRound, openSession } from './model.ts';
+import { latestRound, localDate, openSession } from './model.ts';
 import { usePrefs } from './prefs.ts';
 import { Members } from './screens/Members.tsx';
 import { Nav } from './screens/Nav.tsx';
@@ -18,7 +18,7 @@ import { RoundScreen } from './screens/Round.tsx';
 import { Tonight } from './screens/Tonight.tsx';
 import { TvScreen } from './screens/Tv.tsx';
 import { audioReady, unlockAudio } from './sound.ts';
-import { useAppState, useSaveError } from './store.ts';
+import { useAppState, useDispatch, useSaveError } from './store.ts';
 import { STRINGS, StringsContext, useStrings } from './strings.ts';
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -57,8 +57,14 @@ export function App() {
 function Organiser({ route }: { route: Route }) {
   const t = useStrings();
   const state = useAppState();
+  const dispatch = useDispatch();
   const session = openSession(state);
   useWakeLock(session !== undefined);
+  // A friendly evening someone forgot to end closes the next day, so it can't hold up a club night.
+  const forgotten = session?.friendly && session.date !== localDate(Date.now());
+  useEffect(() => {
+    if (forgotten) dispatch({ type: 'session/close' });
+  }, [forgotten, dispatch]);
   useEffect(() => {
     document.title = t.appName;
   }, [t]);

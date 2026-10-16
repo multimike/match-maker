@@ -41,6 +41,7 @@ function OpenForm() {
   const [courts, setCourts] = useState(last?.courts ?? DEFAULT_COURTS);
   const [minutes, setMinutes] = useState(last?.roundMinutes ?? ROUND_MINUTES[0]);
   const [limit, setLimit] = useState(last?.softLimit ? String(last.softLimit) : '');
+  const [friendly, setFriendly] = useState(false);
   const past = sessions.filter((s) => s.state === 'closed').slice(-6).reverse();
 
   return (
@@ -50,12 +51,17 @@ function OpenForm() {
         onSubmit={(e) => {
           e.preventDefault();
           const softLimit = Number.parseInt(limit, 10);
-          dispatch({ type: 'session/open', courts, roundMinutes: minutes, softLimit: softLimit > 0 ? softLimit : undefined });
+          dispatch({ type: 'session/open', courts, roundMinutes: minutes, softLimit: softLimit > 0 ? softLimit : undefined, friendly });
         }}
       >
         <h1 className="open-title">{t.open.title}</h1>
         <p className="page-lead">{t.open.lead}</p>
         <div className="open-fields">
+          <div className="field">
+            <span className="field-label">{t.open.kind}</span>
+            <Segmented label={t.open.kind} value={friendly} onChange={setFriendly} options={[{ value: false, label: t.open.rated }, { value: true, label: t.open.friendly }]} />
+            <span className="field-hint">{friendly ? t.open.friendlyHint : t.open.ratedHint}</span>
+          </div>
           <div className="field">
             <span className="field-label">{t.open.courts}</span>
             <Stepper label={t.open.courts} value={courts} min={1} max={MAX_COURTS} onChange={setCourts} />
@@ -82,7 +88,10 @@ function OpenForm() {
             {past.map((s) => (
               <li key={s.id}>
                 <span className="past-date">{formatDate(t, s.date)}</span>
-                <span className="past-line">{t.open.pastLine(Object.keys(s.checkIns).length, s.rounds.length)}</span>
+                <span className="past-line">
+                  {t.open.pastLine(Object.keys(s.checkIns).length, s.rounds.length)}
+                  {s.friendly && <span className="chip chip--small">{t.open.friendly}</span>}
+                </span>
               </li>
             ))}
           </ul>
@@ -147,6 +156,7 @@ function OpenEvening({ session }: { session: Session }) {
         <div>
           <h1 className="page-title">{t.tonight.title(formatDate(t, session.date))}</h1>
           <p className="chips">
+            {session.friendly && <span className="chip chip--friendly">{t.open.friendly}</span>}
             <span className="chip">{t.courts(session.courts)}</span>
             <span className="chip">{t.minutes(session.roundMinutes)}</span>
             <button type="button" className="chip chip--button" onClick={() => setSettings(true)}>

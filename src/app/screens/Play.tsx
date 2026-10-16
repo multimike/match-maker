@@ -334,6 +334,7 @@ function Waiting({ client }: { client: PlayerClient }) {
 // ---- The player's evening ----
 
 function Home({ client, me, state }: { client: PlayerClient; me: Member; state: PlayerState }) {
+  const t = useStrings();
   const session = state.live.session;
   const checkIn = session?.checkIns[me.id];
   return (
@@ -343,6 +344,7 @@ function Home({ client, me, state }: { client: PlayerClient; me: Member; state: 
         <NoEvening />
       ) : checkIn?.here ? (
         <>
+          {session.friendly && <p className="phone-friendly phone-friendly--light">{t.phone.friendly}</p>}
           <RoundView client={client} me={me} round={session.round} members={state.members} />
           <TonightCard client={client} me={me} checkIn={checkIn} />
         </>
@@ -418,6 +420,7 @@ function CheckIn({ client, me, session, left }: { client: PlayerClient; me: Memb
     <section className="phone-card">
       <h1 className="phone-title">{left ? t.phone.checkedOut : t.phone.tonightTitle}</h1>
       <p className="phone-date">{formatDate(t, session.date)}</p>
+      {session.friendly && <p className="phone-friendly">{t.phone.friendly}</p>}
       <p className="field-label">{t.phone.feel}</p>
       <EnergyChoice value={energy} onChange={setEnergy} />
       {energy === 'easy' && (

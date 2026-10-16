@@ -119,6 +119,11 @@ test('regenerating replaces the planned round; a round without results can be di
   o.do({ type: 'round/plan' }, { type: 'round/plan' });
   expect(session(o.state).rounds).toHaveLength(1);
   expect(round(o.state).timer.durationMs).toBe(15 * 60_000);
+  // An extra court after the round was made: the round remembers how many there were.
+  o.do({ type: 'session/update', courts: 3 });
+  expect(round(o.state).courtsAvailable).toBe(2);
+  o.do({ type: 'round/plan' });
+  expect(round(o.state).courtsAvailable).toBe(3);
   o.do({ type: 'round/start' }, { type: 'round/plan' });
   expect(session(o.state).rounds).toHaveLength(1); // can't plan while a round is playing
   o.do({ type: 'round/discard' });
@@ -229,4 +234,44 @@ test('the round timer: pause, extra time, warning and buzzer', () => {
   expect(remaining(t, 1000 + 20 * 60_000)).toBe(60_000);
   t = finishTimer(t, 1000 + 20 * 60_000 + 10_000);
   expect(timerPhase(t, 1000 + 20 * 60_000 + 10_000)).toBe('over');
+});
+
+test('a friendly evening keeps ratings and history as they were, but still corrects results', () => {
+  const o = organiser();
+  o.do(...['A', 'B', 'C', 'D'].map((name, i) => member(name, i < 2 ? 1 : 2, { pref: 'singles' })));
+  o.do({ type: 'session/open', courts: 2, roundMinutes: 12, friendly: true });
+  expect(session(o.state).friendly).toBe(true);
+  for (const m of o.state.members) o.do({ type: 'checkIn', memberId: m.id });
+  const before = o.state.members;
+  o.do({ type: 'round/plan' }, { type: 'round/start' });
+  const first = round(o.state);
+  first.courts.forEach((_, court) => o.do({ type: 'result/set', roundId: first.id, court, result: { winner: 0 } }));
+  o.do({ type: 'round/save' });
+
+  expect(o.state.members).toEqual(before); // ratings and match counts untouched
+  expect(o.state.history.met).toEqual({});
+  expect(round(o.state).status).toBe('done');
+  expect(round(o.state).ratingsBefore).toBeUndefined();
+  expect(session(o.state).evening.round).toBe(1); // rests and singles stay fair tonight
+
+  o.do({ type: 'result/set', roundId: first.id, court: 0, result: { winner: 1 } });
+  expect(round(o.state).results[0]).toEqual({ winner: 1 });
+  expect(o.state.members).toEqual(before);
+});
+
+test('a friendly evening left open makes way for the next day; a club night doesn’t', () => {
+  const day = 24 * 60 * 60_000;
+  const o = organiser();
+  o.do(member('A', 1), member('B', 1));
+  o.do({ type: 'session/open', courts: 1, roundMinutes: 12, friendly: true });
+  const friendly = session(o.state).id;
+  o.wait(day);
+  o.do({ type: 'session/open', courts: 2, roundMinutes: 15 });
+  expect(session(o.state).id).not.toBe(friendly);
+  expect(o.state.sessions.find((s) => s.id === friendly)?.state).toBe('closed');
+
+  const clubNight = session(o.state).id;
+  o.wait(day);
+  o.do({ type: 'session/open', courts: 2, roundMinutes: 15, friendly: true });
+  expect(session(o.state).id).toBe(clubNight); // still open: the organiser decides
 });

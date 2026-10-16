@@ -38,6 +38,11 @@ const sv = {
     softLimit: 'Varna när fler än',
     softLimitHint: 'Valfritt. Ingen spärr, bara en påminnelse om vilor.',
     submit: 'Öppna matchkvällen',
+    kind: 'Typ av kväll',
+    rated: 'Klubbkväll',
+    friendly: 'Vänskapsmatcher',
+    ratedHint: 'Resultaten flyttar ratingen.',
+    friendlyHint: 'Samma matchning, men ratingen påverkas inte. Avslutas av sig själv nästa dag.',
     stale: (date: string) => `Matchkvällen ${date} är fortfarande öppen.`,
     closeStale: 'Avsluta den',
     keepStale: 'Fortsätt den',
@@ -92,6 +97,10 @@ const sv = {
     discardConfirm: (n: number) => `Släng omgång ${n}? Inga resultat sparas.`,
     leftSince: (names: string) => `${names} har gått hem. Blanda om för att ta bort.`,
     newSince: (n: number) => (n === 1 ? 'En ny spelare har checkat in. Blanda om för att få med hen.' : `${n} nya spelare har checkat in. Blanda om för att få med dem.`),
+    courtsSince: (d: number) =>
+      d > 0
+        ? `${d === 1 ? 'En bana till' : `${d} banor till`} sedan omgången skapades. Blanda om för att använda ${d === 1 ? 'den' : 'dem'}.`
+        : `Omgången behöver ${-d === 1 ? 'en bana' : `${-d} banor`} mer än det finns nu. Blanda om så att den får plats.`,
     pause: 'Pausa',
     resume: 'Fortsätt',
     addMinute: '+1 min',
@@ -268,6 +277,7 @@ const sv = {
     noEvening: 'Ingen matchkväll just nu.',
     seeYou: 'Vi ses på banan!',
     tonightTitle: 'Matchkväll ikväll!',
+    friendly: 'Vänskapsmatcher: resultaten påverkar inte ratingen.',
     feel: 'Hur känns det ikväll?',
     imHere: 'Jag är här!',
     checkingIn: 'Checkar in …',
@@ -334,6 +344,11 @@ const en: Strings = {
     softLimit: 'Warn above',
     softLimitHint: 'Optional. Nobody is turned away, it’s a reminder about rest rounds.',
     submit: 'Open match night',
+    kind: 'Kind of evening',
+    rated: 'Club night',
+    friendly: 'Friendly',
+    ratedHint: 'Results move the ratings.',
+    friendlyHint: 'Same matchmaking, but ratings stay as they are. Ends by itself the next day.',
     stale: (date) => `The match night on ${date} is still open.`,
     closeStale: 'End it',
     keepStale: 'Keep going',
@@ -388,6 +403,10 @@ const en: Strings = {
     discardConfirm: (n) => `Discard round ${n}? No results are saved.`,
     leftSince: (names) => `${names} left. Shuffle again to take them out.`,
     newSince: (n) => (n === 1 ? 'One new player checked in. Shuffle again to include them.' : `${n} new players checked in. Shuffle again to include them.`),
+    courtsSince: (d) =>
+      d > 0
+        ? `${d === 1 ? 'One more court' : `${d} more courts`} since this round was made. Shuffle again to use ${d === 1 ? 'it' : 'them'}.`
+        : `This round needs ${-d === 1 ? 'one more court' : `${-d} more courts`} than there are now. Shuffle again to make it fit.`,
     pause: 'Pause',
     resume: 'Resume',
     addMinute: '+1 min',
@@ -564,6 +583,7 @@ const en: Strings = {
     noEvening: 'No match night right now.',
     seeYou: 'See you on court!',
     tonightTitle: 'Match night tonight!',
+    friendly: 'Friendly games: results don’t change ratings.',
     feel: 'How are you feeling tonight?',
     imHere: 'I’m here!',
     checkingIn: 'Checking in…',

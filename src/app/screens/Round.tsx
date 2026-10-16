@@ -128,6 +128,12 @@ function ActiveRound({ session, round }: { session: Session; round: Round }) {
     .filter((p) => !isHere(session.checkIns[p.id]))
     .map((p) => state.members.find((m) => m.id === p.id)?.name ?? t.removed);
   const newcomers = Object.values(session.checkIns).filter((c) => isHere(c) && !planned.has(c.memberId)).length;
+  // Only when it matters: more courts for a round that used all it had, or fewer than it needs.
+  const courtChange = round.courtsAvailable === undefined
+    ? 0
+    : session.courts > round.courtsAvailable && round.courts.length >= round.courtsAvailable
+      ? session.courts - round.courtsAvailable
+      : session.courts < round.courts.length ? session.courts - round.courts.length : 0;
   const missing = round.results.filter((r) => r.winner === null).length;
 
   const save = async () => {
@@ -164,8 +170,9 @@ function ActiveRound({ session, round }: { session: Session; round: Round }) {
         </div>
       </header>
 
-      {!playing && (leftNames.length > 0 || newcomers > 0) && (
+      {!playing && (leftNames.length > 0 || newcomers > 0 || courtChange !== 0) && (
         <div className="notice">
+          {courtChange !== 0 && <span>{t.rounds.courtsSince(courtChange)}</span>}
           {leftNames.length > 0 && <span>{t.rounds.leftSince(joinNames(leftNames, t.and))}</span>}
           {newcomers > 0 && <span>{t.rounds.newSince(newcomers)}</span>}
         </div>

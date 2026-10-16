@@ -883,3 +883,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* A friendly evening: results don't move the ratings. */
+.chip--friendly {
+  border-color: var(--court);
+  background: color-mix(in srgb, var(--court) 12%, var(--paper));
+  color: var(--court-deep);
+}
+
+.chip--small {
+  margin-left: 8px;
+  padding: 0 0.55em;
+  font-size: 0.8125rem;
+}

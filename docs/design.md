@@ -215,6 +215,15 @@ How the first version of the app works, where it settles details the notes above
   The latest saved round can be corrected until the next one is saved.
 - **Scores** are optional and stored with the result. Ratings use only the winner for now;
   the simulation found that the score adds little.
+- **Friendly evenings:** chosen when opening the evening. Same matchmaking, timer and
+  phones, but saving a round changes no ratings and nothing in the history across weeks;
+  only tonight's bookkeeping (rests, singles) is kept, so the evening stays fair. A friendly
+  evening left open is closed the next day when an organiser opens the app, or when a new
+  evening is opened, so it can't hold up a club night.
+- **Courts changing mid-evening:** the number of courts can change at any time and applies
+  from the next round made. A round already made remembers how many courts there were; if
+  the change matters (it used every court and more came, or it no longer fits), the Round
+  screen asks to shuffle again.
 - **"Skip next round"** is used up when the next round starts. Rounds that were never saved
   are dropped when the evening ends.
 - **Data** is kept in the browser's localStorage behind `src/app/storage.ts` until the cloud

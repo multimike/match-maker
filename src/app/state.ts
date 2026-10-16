@@ -50,7 +50,7 @@ export type Action =
   | { type: 'member/consent'; id: string }
   | { type: 'member/pref'; id: string; pref: Pref }
   | { type: 'members/import'; members: Member[] }
-  | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number }
+  | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number; friendly?: boolean }
   | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null }
   | { type: 'session/close' }
   | { type: 'checkIn'; memberId: string }
@@ -146,8 +146,11 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
     }
 
     case 'session/open': {
-      if (openSession(state)) return state;
       const date = localDate(env.now);
+      const open = openSession(state);
+      // A friendly evening someone forgot to end doesn't block a new one on a later day.
+      if (open && !(open.friendly && open.date !== date)) return state;
+      if (open) state = closeSession(state, env.now);
       const session: Session = {
         id: env.id(),
         date,
@@ -156,6 +159,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         roundMinutes: action.roundMinutes,
         softLimit: action.softLimit,
         cap: null,
+        ...(action.friendly ? { friendly: true } : {}),
         state: 'open',
         checkIns: {},
         rounds: [],
@@ -177,13 +181,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       }));
 
     case 'session/close':
-      // Rounds without saved results are dropped: nothing from them reached the ratings.
-      return updateSession(state, (s) => ({
-        ...s,
-        state: 'closed',
-        closedAt: env.now,
-        rounds: s.rounds.filter((r) => r.status === 'done').map(({ ratingsBefore: _gone, ...r }) => ({ ...r, players: [] })),
-      }));
+      return closeSession(state, env.now);
 
     case 'checkIn': {
       const member = state.members.find((m) => m.id === action.memberId);
@@ -231,6 +229,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         courts: plan.courts,
         resting: plan.resting,
         players,
+        courtsAvailable: session.courts,
         status: 'planned',
         timer: newTimer(session.roundMinutes),
         results: plan.courts.map(() => ({ winner: null })),
@@ -274,6 +273,8 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       if (!session || !round || !round.courts[action.court]) return state;
       const results = round.results.map((r, i) => (i === action.court ? action.result : r));
       if (round.status === 'playing') return replaceRound(state, { ...round, results });
+      // A friendly evening's latest round can be corrected too; there are no ratings to redo.
+      if (session.friendly) return round.status === 'done' && isLastDone(session, round) ? replaceRound(state, { ...round, results }) : state;
       if (round.status !== 'done' || !isLastDone(session, round) || !round.ratingsBefore) return state;
       // Correcting the latest saved round: rate it again from the ratings it started from.
       const ratings = rateRound({ ...ratingsOf(state.members, round.players), ...round.ratingsBefore }, round, results.map((r) => r.winner));
@@ -284,6 +285,15 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       const session = openSession(state);
       const round = latestRound(session);
       if (!session || round?.status !== 'playing') return state;
+      if (session.friendly) {
+        // Only tonight's bookkeeping, so rests and singles stay fair through the evening.
+        const saved: Round = { ...round, status: 'done', finishedAt: env.now };
+        return updateSession(state, (s) => ({
+          ...s,
+          evening: recordRound(s.evening, round, round.players),
+          rounds: [...s.rounds.slice(0, -1), saved],
+        }));
+      }
       const ratings = ratingsOf(state.members, round.players);
       const onCourt = round.courts.flatMap((c) => c.sides.flat());
       const ratingsBefore = Object.fromEntries(onCourt.map((id) => [id, ratings[id]]));
@@ -304,6 +314,16 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
     case 'state/replace':
       return action.state;
   }
+}
+
+// Rounds without saved results are dropped: nothing from them reached the ratings.
+function closeSession(state: AppState, now: number): AppState {
+  return updateSession(state, (s) => ({
+    ...s,
+    state: 'closed',
+    closedAt: now,
+    rounds: s.rounds.filter((r) => r.status === 'done').map(({ ratingsBefore: _gone, ...r }) => ({ ...r, players: [] })),
+  }));
 }
 
 function withoutPartner(m: Member): Member {

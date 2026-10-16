@@ -33,6 +33,8 @@ export interface LiveSession {
   date: string;
   courts: number;
   roundMinutes: number;
+  /** Results don't change ratings tonight. */
+  friendly?: boolean;
   checkIns: Record<string, LiveCheckIn>;
   round?: LiveRound;
 }
@@ -52,6 +54,7 @@ export function liveView(state: AppState): LiveView {
       date: session.date,
       courts: session.courts,
       roundMinutes: session.roundMinutes,
+      ...(session.friendly ? { friendly: true } : {}),
       checkIns: Object.fromEntries(Object.entries(session.checkIns).map(([id, c]) => [id, {
         energy: c.energy,
         restOk: c.restOk,
