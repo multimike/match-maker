@@ -20,8 +20,10 @@ export interface Member {
   /** Fixed competition partner and how often to pair them (0–1), kept on both partners. */
   partnerId?: string;
   partnerShare?: number;
-  /** Self-added players are 'new' until the organiser confirms them (QR check-in, step 3). */
+  /** Players who sign up on their phone are 'new' until the organiser confirms them. */
   status: 'new' | 'confirmed';
+  /** When the player agreed, on their phone, to their name, level and results being shown to the club. */
+  consentAt?: number;
   createdAt: number;
 }
 
@@ -109,6 +111,8 @@ export const MAX_COURTS = 12;
 export const PARTNER_SHARES = [0.25, 0.5, 0.75] as const;
 /** Scores at the buzzer: a game is to 21, at most 30. */
 export const MAX_SCORE = 30;
+/** Longest name a player can give on their phone (the security rules say the same). */
+export const MAX_NAME = 40;
 
 export function emptyState(): AppState {
   return { version: 1, members: [], sessions: [], history: { met: {} } };

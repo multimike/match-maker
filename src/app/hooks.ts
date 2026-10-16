@@ -8,13 +8,34 @@ import { audioReady, play, type Cue } from './sound.ts';
 import { newId } from './store.ts';
 import { WARNING_MS, remaining } from './timer.ts';
 
-export type Route = 'tonight' | 'round' | 'members' | 'tv';
+/** Organiser screens, the TV display, the printable poster, and phones (#/play, #/join/<code>). */
+export type Route = 'tonight' | 'round' | 'members' | 'tv' | 'poster' | 'play' | 'join';
 
-const ROUTES: Route[] = ['tonight', 'round', 'members', 'tv'];
+const ROUTES: Route[] = ['tonight', 'round', 'members', 'tv', 'poster', 'play', 'join'];
 
 function routeOf(hash: string): Route {
-  const name = hash.replace(/^#\/?/, '');
+  const name = hash.replace(/^#\/?/, '').split('/')[0];
   return ROUTES.find((r) => r === name) ?? 'tonight';
+}
+
+/** The club's code in a join link from the QR poster: #/join/<code>. */
+export function joinCodeOf(hash: string): string | null {
+  return /^#\/join\/([A-Za-z0-9_-]+)/.exec(hash)?.[1] ?? null;
+}
+
+/** Whether the device is online, as the browser sees it. */
+export function useOnline(): boolean {
+  return useSyncExternalStore(
+    (listener) => {
+      window.addEventListener('online', listener);
+      window.addEventListener('offline', listener);
+      return () => {
+        window.removeEventListener('online', listener);
+        window.removeEventListener('offline', listener);
+      };
+    },
+    () => navigator.onLine,
+  );
 }
 
 function subscribeHash(listener: () => void) {
@@ -34,9 +55,12 @@ export function go(route: Route) {
   location.hash = routeHref(route);
 }
 
+/** The name of the TV display's own window. */
+export const TV_WINDOW = 'matchmaker-tv';
+
 /** Opens the court display in its own window, to drag to the TV; or here if popups are blocked. */
 export function openTvWindow() {
-  const tv = window.open(`${location.pathname}#/tv`, 'matchmaker-tv', 'popup,width=1280,height=720');
+  const tv = window.open(`${location.pathname}#/tv`, TV_WINDOW, 'popup,width=1280,height=720');
   if (!tv) go('tv');
 }
 

@@ -45,7 +45,8 @@ export function CourtCard({ number, court, sides, result, onResult, upset, varia
   );
 }
 
-function ScoreEntry({ result, onResult, level }: { result: CourtResult; onResult: (r: CourtResult) => void; level: boolean }) {
+/** The optional score at the buzzer, under a court that takes results. */
+export function ScoreEntry({ result, onResult, level }: { result: CourtResult; onResult: (r: CourtResult) => void; level: boolean }) {
   const t = useStrings();
   const [open, setOpen] = useState(!!result.score);
   const [a, setA] = useState(result.score ? String(result.score[0]) : '');

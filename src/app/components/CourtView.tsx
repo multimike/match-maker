@@ -23,6 +23,8 @@ interface CourtViewProps {
   onPick?: (side: 0 | 1) => void;
   /** Both halves invite a tap (a level score needs the deciding point). */
   invite?: boolean;
+  /** The half the viewer plays on (their phone). */
+  mine?: 0 | 1;
 }
 
 // Court lines in centimetres: doubles and singles sidelines, long and short service lines,
@@ -54,7 +56,7 @@ function NameTag({ tag }: { tag: Tag }) {
   );
 }
 
-export function CourtView({ type, sides, result, winLabel, onPick, invite }: CourtViewProps) {
+export function CourtView({ type, sides, result, winLabel, onPick, invite, mine }: CourtViewProps) {
   const winner = result?.winner ?? null;
   return (
     <div className={`court court--${type}`} data-winner={winner ?? 'none'} data-invite={invite || undefined}>
@@ -71,7 +73,7 @@ export function CourtView({ type, sides, result, winLabel, onPick, invite }: Cou
             {result?.score && <span className="court-score">{result.score[s]}</span>}
           </>
         );
-        const className = `court-half court-half--${s === 0 ? 'a' : 'b'}`;
+        const className = `court-half court-half--${s === 0 ? 'a' : 'b'}${mine === s ? ' court-half--mine' : ''}`;
         return onPick ? (
           <button
             key={s}

@@ -109,6 +109,10 @@ a {
   transition: transform 80ms ease, box-shadow 80ms ease, background-color 120ms ease;
 }
 
+a.button {
+  text-decoration: none;
+}
+
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.45;

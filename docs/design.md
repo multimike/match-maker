@@ -176,9 +176,10 @@ Stylish and inviting, slightly playful, and unmistakably badminton:
   unchanged in the app, the tests and the Node simulation. The organiser's device generates
   the rounds.
 - **Firebase Firestore** (free Spark plan) for real-time sync between the organiser's
-  device and players' phones, and for history across weeks. Anonymous auth plus security
-  rules. Supabase's free tier was ruled out: it pauses projects after a week without
-  activity, which is too close to a weekly rhythm.
+  device and players' phones, and for history across weeks. Organisers sign in with Google,
+  phones anonymously; security rules decide the rest (see
+  [Phones and the cloud](#phones-and-the-cloud-step-3)). Supabase's free tier was ruled out:
+  it pauses projects after a week without activity, which is too close to a weekly rhythm.
 - Firebase's web config in a public repo is normal. Access is controlled by the security
   rules.
 - GDPR: store only first names or nicknames, level, results and preferences. Consent at
@@ -216,12 +217,57 @@ How the first version of the app works, where it settles details the notes above
   the simulation found that the score adds little.
 - **"Skip next round"** is used up when the next round starts. Rounds that were never saved
   are dropped when the evening ends.
-- **Data** is kept in the browser's localStorage behind `src/app/storage.ts`, the one module
-  to swap for Firestore in step 3. Settings has a backup download and restore.
+- **Data** is kept in the browser's localStorage behind `src/app/storage.ts` until the cloud
+  is set up (step 3). Settings has a backup download and restore.
 - **Updates** to the app wait for the organiser to reload, so a new version never restarts
   the app mid-round.
 - **Language:** Swedish and English, switchable in the app; all text is in
   `src/app/strings.ts`.
+
+## Phones and the cloud (step 3)
+
+With a Firebase project filled in (`src/app/cloud/config.ts`), the club's data lives in
+Firestore and players check in from their phones. Without it, the app runs on one device as
+in step 2.
+
+- **Organisers** sign in with Google. The first account to sign in sets the club up and
+  becomes its owner; organisers add each other by email address in Settings. The owner
+  can't be removed.
+- **Players' phones** sign in anonymously, without a login screen, and join the club with
+  the code in the QR poster's link (`#/join/<code>`). Without joining, a phone can read
+  nothing. **Replace the code** in Settings if the poster has spread beyond the club: the old
+  code stops working and every phone is signed out, so everyone scans the new poster.
+- **One writer.** Only organisers' devices change the club's data, through the same reducer
+  as on one device. Phones send small requests instead ("I'm here", "skip next round", who
+  won on my court). The organiser's main window checks each one against the current
+  evening and applies it as an ordinary action, or drops it if it no longer makes sense
+  (`src/app/requests.ts`). Handling a request twice does no harm. Requests only go through
+  while an organiser's app is open, which it is during the evening.
+- **Documents:** `club/settings` (organisers and the join code, organisers only),
+  `club/members`, `club/history`, `sessions/{id}` (one per evening, organisers only),
+  `live/current` (what phones see of tonight), `players/{uid}` (a phone that has joined and
+  who it says it is) and `requests/{id}`. Each holds its content as one JSON string, since
+  Firestore can't store arrays inside arrays (a court's two sides).
+- **Phones read a small live view**, not the evening itself: an evening's document grows
+  to around 100 KB, and with 30 phones following every change that would cost each phone
+  some 20 MB a night. The live view has tonight's check-ins, the current round, the timer
+  and the results, and nothing of the engine's bookkeeping.
+- **Offline:** Firestore keeps a copy on each device. The organiser's device carries on
+  when the hall's Wi-Fi drops and sends its changes when it comes back. Phones need a
+  connection to check in and send results.
+- **What a phone shows:** scan the poster; "Who are you?" (tap your name, or "I'm new"); on a
+  new phone, your preference and consent; then "I'm here!" with your energy for the night.
+  During the evening: your court as a big number with the court drawn from above, the
+  timer, and tapping who won; resting rounds; after each round, the result and your rating
+  change. Skip next round, change energy and check out are always there.
+- **New players** are added as soon as they sign up, marked "New" until an organiser
+  confirms them in the member form, where duplicates can also be deleted.
+- **Security rules** (`firestore.rules`) are tested against the Firestore emulator
+  (`test/rules/`, `npm run test:rules`).
+- **Limits:** two organiser devices editing the same evening at once can overwrite each
+  other's change (the last one wins), so run the evening from one device; the TV window
+  only shows. Organisers sign in with a popup: a full-page redirect doesn't work on browsers
+  that block third-party storage when the site isn't hosted on Firebase.
 
 ## Plan
 
@@ -230,7 +276,8 @@ How the first version of the app works, where it settles details the notes above
 2. **Organiser app** on a single device: members, check-in, round generation, court
    display, result entry and the round timer. Done: the app is in `src/app/`; see the
    section above and the README.
-3. **Firestore sync and QR check-in** on players' phones.
+3. **Firestore sync and QR check-in** on players' phones. Built (see above); live once the
+   club's Firebase project is connected (README).
 4. **Later, if needed:** pre-registration, then soft or hard cap.
 
 ## Open questions

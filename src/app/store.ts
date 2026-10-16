@@ -22,7 +22,7 @@ export function newId(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 }
 
-function browserEnv(): Env {
+export function browserEnv(): Env {
   return { now: Date.now(), random: Math.random, id: newId };
 }
 

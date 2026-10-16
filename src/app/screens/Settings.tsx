@@ -1,7 +1,11 @@
-// Device settings and the data's safety net: language, sound, backup and restore.
+// Device settings and the data's safety net: language, sound, backup and restore. With the cloud
+// set up, also the players' phones (QR code, poster) and who the organisers are.
 
 import { useRef, useState } from 'react';
+import { joinLink, useCloud, type CloudInfo } from '../cloud/context.ts';
+import { QrCode } from '../components/QrCode.tsx';
 import { Dialog, Segmented, useConfirm } from '../components/ui.tsx';
+import { routeHref } from '../hooks.ts';
 import { emptyState } from '../model.ts';
 import { setPrefs, usePrefs, type Lang } from '../prefs.ts';
 import { play, unlockAudio } from '../sound.ts';
@@ -15,6 +19,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
   const state = useAppState();
   const dispatch = useDispatch();
   const confirm = useConfirm();
+  const cloud = useCloud();
   const file = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState('');
 
@@ -43,6 +48,9 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog open onClose={onClose} title={t.settings.title} className="dialog--form">
+      {cloud && <Phones cloud={cloud} onClose={onClose} />}
+      {cloud && <Organisers cloud={cloud} />}
+
       <div className="field">
         <span className="field-label">{t.settings.language}</span>
         <Segmented label={t.settings.language} value={prefs.lang} onChange={(lang: Lang) => setPrefs({ lang })} options={(['sv', 'en'] as Lang[]).map((l) => ({ value: l, label: t.languages[l] }))} />
@@ -68,7 +76,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <div className="field">
         <span className="field-label">{t.settings.backup}</span>
-        <span className="field-hint">{t.settings.backupHint}</span>
+        <span className="field-hint">{cloud ? t.cloud.backupHint : t.settings.backupHint}</span>
         <div className="row">
           <button type="button" className="button button--quiet" onClick={download}>
             {t.settings.download}
@@ -86,7 +94,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
           type="button"
           className="button button--danger-quiet dialog-actions-start"
           onClick={async () => {
-            if (await confirm(t.settings.wipeConfirm, t.settings.wipe)) {
+            if (await confirm(cloud ? t.cloud.wipeConfirm : t.settings.wipeConfirm, t.settings.wipe)) {
               dispatch({ type: 'state/replace', state: emptyState() });
               onClose();
             }
@@ -94,10 +102,107 @@ export function Settings({ onClose }: { onClose: () => void }) {
         >
           {t.settings.wipe}
         </button>
+        {cloud && (
+          <button type="button" className="button button--quiet" title={t.cloud.signedInAs(cloud.email)} onClick={() => void cloud.signOut()}>
+            {t.cloud.signOut}
+          </button>
+        )}
         <button type="button" className="button button--primary" onClick={onClose}>
           {t.done}
         </button>
       </div>
     </Dialog>
+  );
+}
+
+/** The QR code players scan, the poster, and a new code if the old one has spread too far. */
+function Phones({ cloud, onClose }: { cloud: CloudInfo; onClose: () => void }) {
+  const t = useStrings();
+  const confirm = useConfirm();
+  const [copied, setCopied] = useState(false);
+  const link = joinLink(cloud.joinCode);
+  return (
+    <div className="field">
+      <span className="field-label">{t.cloud.phones}</span>
+      <span className="field-hint">{t.cloud.phonesHint}</span>
+      <div className="phones">
+        <QrCode text={link} className="phones-qr" label={t.cloud.phones} />
+        <div className="phones-actions">
+          <a className="button button--primary" href={routeHref('poster')} onClick={onClose}>
+            {t.cloud.poster}
+          </a>
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => {
+              void navigator.clipboard?.writeText(link).then(() => setCopied(true));
+            }}
+          >
+            {copied ? t.cloud.copied : t.cloud.copyLink}
+          </button>
+          <button
+            type="button"
+            className="button button--danger-quiet"
+            onClick={async () => {
+              if (await confirm(t.cloud.newCodeConfirm, t.cloud.newCode)) {
+                await cloud.replaceJoinCode();
+                setCopied(false);
+              }
+            }}
+          >
+            {t.cloud.newCode}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Organisers({ cloud }: { cloud: CloudInfo }) {
+  const t = useStrings();
+  const confirm = useConfirm();
+  const [email, setEmail] = useState('');
+  const add = () => {
+    const address = email.trim().toLowerCase();
+    if (!address.includes('@') || cloud.organisers.includes(address)) return;
+    void cloud.setOrganisers([...cloud.organisers, address]).then(() => setEmail(''));
+  };
+  return (
+    <div className="field">
+      <span className="field-label">{t.cloud.organisers}</span>
+      <span className="field-hint">{t.cloud.organisersHint}</span>
+      <ul className="organisers">
+        {cloud.organisers.map((o) => (
+          <li key={o} className="organiser">
+            <span className="organiser-email">{o}</span>
+            {o === cloud.owner && <span className="chip">{t.cloud.owner}</span>}
+            {o === cloud.email && <span className="chip">{t.cloud.you}</span>}
+            {o !== cloud.owner && (
+              <button
+                type="button"
+                className="link-button organiser-remove"
+                onClick={async () => {
+                  if (await confirm(t.cloud.removeConfirm(o), t.cloud.removeOrganiser)) void cloud.setOrganisers(cloud.organisers.filter((x) => x !== o));
+                }}
+              >
+                {t.cloud.removeOrganiser}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <form
+        className="row organiser-add"
+        onSubmit={(e) => {
+          e.preventDefault();
+          add();
+        }}
+      >
+        <input className="input" type="email" placeholder={t.cloud.organiserEmail} aria-label={t.cloud.organiserEmail} value={email} onChange={(e) => setEmail(e.target.value)} />
+        <button type="submit" className="button button--quiet" disabled={!email.includes('@')}>
+          {t.cloud.addOrganiser}
+        </button>
+      </form>
+    </div>
   );
 }

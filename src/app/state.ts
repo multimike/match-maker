@@ -6,6 +6,7 @@ import { newEvening, planRound, recordHistory, recordRound, type Energy, type Pl
 import { rateRound, startingRating, type Ratings } from '../engine/rating.ts';
 import type { Random } from '../engine/random.ts';
 import {
+  MAX_NAME,
   dayNumber,
   isHere,
   latestRound,
@@ -42,6 +43,12 @@ export type Action =
   | { type: 'member/add'; member: MemberInput; id?: string }
   | { type: 'member/update'; id: string; member: MemberInput; rating?: number }
   | { type: 'member/delete'; id: string }
+  /** A player signing up on their phone: 'new' until the organiser confirms them. */
+  | { type: 'member/signup'; id: string; name: string; group: Group; pref: Pref }
+  | { type: 'member/confirm'; id: string }
+  /** The player agreed on their phone to their name, level and results being shown to the club. */
+  | { type: 'member/consent'; id: string }
+  | { type: 'member/pref'; id: string; pref: Pref }
   | { type: 'members/import'; members: Member[] }
   | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number }
   | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null }
@@ -64,7 +71,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
   switch (action.type) {
     case 'member/add': {
       const name = action.member.name.trim();
-      if (!name) return state;
+      if (!name || state.members.some((m) => m.id === action.id)) return state;
       const member: Member = {
         id: action.id ?? env.id(),
         name,
@@ -105,6 +112,33 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       });
       return { ...state, members, sessions, history: { met } };
     }
+
+    case 'member/signup': {
+      const name = action.name.trim().slice(0, MAX_NAME);
+      // A request handled twice (two organiser devices) must not add the player twice.
+      if (!name || state.members.some((m) => m.id === action.id)) return state;
+      const member: Member = {
+        id: action.id,
+        name,
+        group: action.group,
+        rating: startingRating(action.group),
+        matches: 0,
+        pref: action.pref,
+        status: 'new',
+        consentAt: env.now,
+        createdAt: env.now,
+      };
+      return { ...state, members: [...state.members, member] };
+    }
+
+    case 'member/confirm':
+      return updateMember(state, action.id, (m) => (m.status === 'new' ? { ...m, status: 'confirmed' } : m));
+
+    case 'member/consent':
+      return updateMember(state, action.id, (m) => (m.consentAt === undefined ? { ...m, consentAt: env.now } : m));
+
+    case 'member/pref':
+      return updateMember(state, action.id, (m) => (m.pref === action.pref ? m : { ...m, pref: action.pref }));
 
     case 'members/import': {
       const known = new Set(state.members.map((m) => m.id));
@@ -289,6 +323,17 @@ function linkPartner(members: Member[], id: string, partnerId: string | null, sh
     if (m.partnerId !== undefined && (involved.has(m.partnerId) || involved.has(m.id))) return withoutPartner(m);
     return m;
   });
+}
+
+function updateMember(state: AppState, id: string, change: (m: Member) => Member): AppState {
+  let changed = false;
+  const members = state.members.map((m) => {
+    if (m.id !== id) return m;
+    const next = change(m);
+    changed = next !== m;
+    return next;
+  });
+  return changed ? { ...state, members } : state;
 }
 
 function updateSession(state: AppState, change: (s: Session) => Session): AppState {

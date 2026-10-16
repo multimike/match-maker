@@ -11,9 +11,14 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "sim": "node sim/simulate.ts",
-    "icons": "npx --yes @vite-pwa/assets-generator@2.0.0 --config tools/pwa-assets.config.js"
+    "icons": "npx --yes @vite-pwa/assets-generator@2.0.0 --config tools/pwa-assets.config.js",
+    "test:rules": "npx --yes firebase-tools@15.34.0 emulators:exec --only firestore --project demo-matchmaker \"vitest run --config vitest.rules.config.ts\"",
+    "emulators": "npx --yes firebase-tools@15.34.0 emulators:start --only auth,firestore --project demo-matchmaker",
+    "dev:cloud": "VITE_FIREBASE_EMULATOR=1 vite --port 5174 --host 127.0.0.1",
+    "deploy:rules": "npx --yes firebase-tools@15.34.0 deploy --only firestore:rules,firestore:indexes"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -26,7 +31,9 @@
   "dependencies": {
     "@fontsource-variable/anybody": "^5.3.0",
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "firebase": "^13.0.0",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "uqr": "^0.1.3"
   }
 }

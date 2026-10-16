@@ -1,0 +1,8 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "club", "fieldPath": "json", "indexes": [] },
+    { "collectionGroup": "sessions", "fieldPath": "json", "indexes": [] },
+    { "collectionGroup": "live", "fieldPath": "json", "indexes": [] }
+  ]
+}

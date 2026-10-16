@@ -1,0 +1,171 @@
+rules_version = '2';
+
+// Who may read and write what (see "Phones and the cloud" in docs/design.md).
+//
+// Organisers sign in with Google and are listed in club/settings. They run the evening and own
+// all of the club's data. Players' phones sign in anonymously and join with the club's code from
+// the QR poster. They can read the members and tonight's live view, and send requests that the
+// organiser's device checks and applies. They never change the club's data themselves.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function email() {
+      return request.auth.token.email.lower();
+    }
+
+    // Organisers are Google accounts: verified email addresses, which is what they're listed by.
+    function google() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function settingsPath() {
+      return /databases/$(database)/documents/club/settings;
+    }
+
+    function organiser() {
+      return google() && exists(settingsPath()) && email() in get(settingsPath()).data.organisers;
+    }
+
+    function playerPath() {
+      return /databases/$(database)/documents/players/$(request.auth.uid);
+    }
+
+    // A phone that has joined with the club's code.
+    function player() {
+      return signedIn() && exists(playerPath());
+    }
+
+    function validId(id) {
+      return id is string && id.matches('[A-Za-z0-9_-]{1,40}');
+    }
+
+    // ---- The club's settings: organisers and the join code ----
+
+    function validSettings(data) {
+      return data.keys().hasOnly(['owner', 'organisers', 'joinCode'])
+        && data.organisers is list && data.organisers.size() <= 20
+        && data.owner in data.organisers
+        && data.joinCode is string && data.joinCode.size() >= 8 && data.joinCode.size() <= 40;
+    }
+
+    match /club/settings {
+      // A club that doesn't exist yet can be looked up, so the first organiser can set it up.
+      allow get: if (signedIn() && resource == null) || organiser();
+      // The first Google account to set the club up becomes its owner.
+      allow create: if google() && validSettings(request.resource.data)
+        && request.resource.data.owner == email()
+        && request.resource.data.organisers == [email()];
+      // The owner stays the owner, and stays an organiser.
+      allow update: if organiser() && validSettings(request.resource.data)
+        && request.resource.data.owner == resource.data.owner;
+    }
+
+    // ---- The club's data: written only by organisers ----
+
+    match /club/members {
+      allow read: if organiser() || player();
+      allow write: if organiser();
+    }
+
+    match /club/history {
+      allow read, write: if organiser();
+    }
+
+    match /sessions/{session} {
+      allow read, write: if organiser();
+    }
+
+    match /live/current {
+      allow read: if organiser() || player();
+      allow write: if organiser();
+    }
+
+    // ---- Phones ----
+
+    match /players/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || organiser());
+      allow list: if organiser();
+      // Joining: only with the club's current code.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code', 'joinedAt'])
+        && request.resource.data.joinedAt == request.time
+        && exists(settingsPath())
+        && request.resource.data.code == get(settingsPath()).data.joinCode;
+      // Saying who you are (or "not me"): on trust, as at the club.
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberId'])
+        && (!('memberId' in request.resource.data) || validId(request.resource.data.memberId));
+      allow delete: if signedIn() && (request.auth.uid == uid || organiser());
+    }
+
+    match /requests/{id} {
+      allow create: if player() && validRequest(request.resource.data);
+      allow read, delete: if organiser();
+    }
+
+    // A request is about the member this phone has said it is, timed by the server.
+    function validRequest(r) {
+      return r.uid == request.auth.uid
+        && r.at == request.time
+        && validId(r.memberId)
+        && r.memberId == get(playerPath()).data.get('memberId', '')
+        && (signupRequest(r) || profileRequest(r) || checkInRequest(r) || updateRequest(r)
+          || checkOutRequest(r) || resultRequest(r));
+    }
+
+    function baseKeys() {
+      return ['uid', 'at', 'type', 'memberId'];
+    }
+
+    function energy(e) {
+      return e in ['challenge', 'normal', 'easy'];
+    }
+
+    function pref(p) {
+      return p in ['singles', 'either', 'doubles'];
+    }
+
+    function signupRequest(r) {
+      return r.type == 'signup' && r.keys().hasOnly(baseKeys().concat(['name', 'group', 'pref', 'consent']))
+        && r.name is string && r.name.size() >= 1 && r.name.size() <= 40
+        && r.group in [1, 2] && pref(r.pref) && r.consent == true;
+    }
+
+    function profileRequest(r) {
+      return r.type == 'profile' && r.keys().hasOnly(baseKeys().concat(['pref', 'consent']))
+        && (!('pref' in r) || pref(r.pref))
+        && (!('consent' in r) || r.consent == true);
+    }
+
+    function checkInRequest(r) {
+      return r.type == 'checkIn' && r.keys().hasOnly(baseKeys().concat(['energy', 'restOk']))
+        && energy(r.energy) && r.restOk is bool;
+    }
+
+    function updateRequest(r) {
+      return r.type == 'update' && r.keys().hasOnly(baseKeys().concat(['energy', 'restOk', 'skip']))
+        && (!('energy' in r) || energy(r.energy))
+        && (!('restOk' in r) || r.restOk is bool)
+        && (!('skip' in r) || r.skip is bool);
+    }
+
+    function checkOutRequest(r) {
+      return r.type == 'checkOut' && r.keys().hasOnly(baseKeys());
+    }
+
+    function resultRequest(r) {
+      return r.type == 'result' && r.keys().hasOnly(baseKeys().concat(['roundId', 'court', 'winner', 'score']))
+        && validId(r.roundId)
+        && r.court is int && r.court >= 0 && r.court < 20
+        && (r.winner == null || r.winner in [0, 1])
+        && (!('score' in r) || (r.score is list && r.score.size() == 2 && r.score[0] is int && r.score[1] is int));
+    }
+  }
+}

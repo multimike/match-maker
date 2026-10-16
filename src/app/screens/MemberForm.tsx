@@ -60,6 +60,21 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
 
   return (
     <Dialog open onClose={onClose} title={member ? t.form.editTitle : t.form.addTitle} className="dialog--form">
+      {member?.status === 'new' && (
+        <div className="notice notice--form">
+          <span>{t.form.newNotice}</span>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => {
+              dispatch({ type: 'member/confirm', id: member.id });
+              onClose();
+            }}
+          >
+            {t.form.confirm}
+          </button>
+        </div>
+      )}
       <form
         className="form"
         onSubmit={(e) => {
