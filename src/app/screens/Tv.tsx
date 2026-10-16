@@ -1,15 +1,17 @@
 // The court display for the TV in the hall: big, bold and readable from a distance. Court numbers
-// and names first, decoration second. It follows the organiser's window live (same device,
-// shared storage), sounds the cues, and keeps the screen awake.
+// and names first, decoration second. It shows tonight's live view (live.ts), so it runs the
+// same on the organiser's device and on a TV that joined with the TV link (TvLink.tsx). It
+// sounds the cues and keeps the screen awake.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar.tsx';
 import { CourtCard } from '../components/CourtCard.tsx';
 import type { Tag } from '../components/CourtView.tsx';
 import { RoundCues } from '../components/RoundCues.tsx';
 import { Confetti, Shuttle } from '../components/Shuttle.tsx';
 import { go, useFitGrid, useNow, useTvHeartbeat, useWakeLock } from '../hooks.ts';
-import { isHere, latestRound, openSession, type AppState, type Round } from '../model.ts';
+import { liveView, type LiveRound, type LiveSession } from '../live.ts';
+import type { Member } from '../model.ts';
 import { audioReady, unlockAudio } from '../sound.ts';
 import { useAppState } from '../store.ts';
 import { useStrings } from '../strings.ts';
@@ -18,11 +20,23 @@ import { clock, remaining, timerPhase, type TimerPhase } from '../timer.ts';
 // A TV card is the court (13.40 × 6.10) plus a header and gap 16% of the card's width tall.
 const CARD_ASPECT = 1 / (610 / 1340 + 0.16);
 
-export function TvScreen() {
-  const t = useStrings();
+/** The TV view on an organiser's device, from the club's data. */
+export function OrganiserTv() {
   const state = useAppState();
-  const session = openSession(state);
-  const round = latestRound(session);
+  const live = useMemo(() => liveView(state), [state]);
+  return <TvScreen session={live.session} members={state.members} />;
+}
+
+interface TvScreenProps {
+  session: LiveSession | null;
+  members: Member[];
+  /** On a TV of its own (the TV link) there's nowhere to go back to. */
+  standalone?: boolean;
+}
+
+export function TvScreen({ session, members, standalone }: TvScreenProps) {
+  const t = useStrings();
+  const round = session?.round;
   // The titles follow the timer's phase; only TvClock ticks fast.
   const now = useNow(round?.status === 'playing', 500);
   const [audio, setAudio] = useState(audioReady);
@@ -63,11 +77,11 @@ export function TvScreen() {
 
       <main className="tv-main">
         {!session && <Shuttle size="30vmin" className="tv-big-shuttle" />}
-        {session && !round && <HereTonight state={state} />}
-        {round && <TvCourts round={round} state={state} />}
+        {session && !round && <HereTonight session={session} members={members} />}
+        {round && <TvCourts round={round} members={members} />}
       </main>
 
-      {round && <TvResting ids={round.resting} state={state} />}
+      {round && <TvResting ids={round.resting} members={members} />}
 
       {!audio && (
         <button
@@ -80,17 +94,17 @@ export function TvScreen() {
           }}
         >
           <span className="tv-start-title">🔈 {t.tv.start}</span>
-          <span className="tv-start-hint">{t.tv.startHint}</span>
+          <span className="tv-start-hint">{standalone ? t.tv.startHintHere : t.tv.startHint}</span>
         </button>
       )}
       <RoundCues round={round} isTv />
-      <TvControls />
+      <TvControls standalone={standalone} />
     </div>
   );
 }
 
 /** The clock and its track. After the round they keep their space (hidden), so the courts stay put. */
-function TvClock({ round }: { round: Round }) {
+function TvClock({ round }: { round: LiveRound }) {
   const now = useNow(round.status === 'playing');
   const left = remaining(round.timer, now);
   const done = round.status === 'done' || undefined;
@@ -106,18 +120,18 @@ function TvClock({ round }: { round: Round }) {
   );
 }
 
-function tagsFor(state: AppState, fallback: string) {
-  const names = new Map(state.members.map((m) => [m.id, m.name]));
+function tagsFor(members: Member[], fallback: string) {
+  const names = new Map(members.map((m) => [m.id, m.name]));
   return (sides: [string[], string[]]): [Tag[], Tag[]] =>
     sides.map((side) => side.map((id) => ({ id, name: names.get(id) ?? fallback }))) as [Tag[], Tag[]];
 }
 
-function TvCourts({ round, state }: { round: Round; state: AppState }) {
+function TvCourts({ round, members }: { round: LiveRound; members: Member[] }) {
   const t = useStrings();
   const ref = useRef<HTMLDivElement>(null);
   const gap = 24;
   const fit = useFitGrid(ref, round.courts.length, CARD_ASPECT, gap);
-  const tags = tagsFor(state, t.removed);
+  const tags = tagsFor(members, t.removed);
   const celebrate = round.status === 'done' && round.finishedAt !== undefined && Date.now() - round.finishedAt < 5000;
   return (
     <div ref={ref} className="tv-courts">
@@ -131,11 +145,10 @@ function TvCourts({ round, state }: { round: Round; state: AppState }) {
   );
 }
 
-function HereTonight({ state }: { state: AppState }) {
+function HereTonight({ session, members }: { session: LiveSession; members: Member[] }) {
   const t = useStrings();
-  const session = openSession(state)!;
-  const here = state.members
-    .filter((m) => isHere(session.checkIns[m.id]))
+  const here = members
+    .filter((m) => session.checkIns[m.id]?.here)
     .sort((a, b) => a.name.localeCompare(b.name, t.locale));
   return (
     <section className="tv-here">
@@ -152,9 +165,9 @@ function HereTonight({ state }: { state: AppState }) {
   );
 }
 
-function TvResting({ ids, state }: { ids: string[]; state: AppState }) {
+function TvResting({ ids, members }: { ids: string[]; members: Member[] }) {
   const t = useStrings();
-  const names = new Map(state.members.map((m) => [m.id, m.name]));
+  const names = new Map(members.map((m) => [m.id, m.name]));
   return (
     <footer className="tv-resting">
       <span className="tv-resting-title">💤 {ids.length ? t.resting : t.nobodyRests}</span>
@@ -171,7 +184,7 @@ function TvResting({ ids, state }: { ids: string[]; state: AppState }) {
 }
 
 /** Back and full screen, shown while the mouse moves (or after a tap), hidden otherwise. */
-function TvControls() {
+function TvControls({ standalone }: { standalone?: boolean }) {
   const t = useStrings();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -194,17 +207,19 @@ function TvControls() {
       <button type="button" className="tv-control" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}>
         {t.tv.fullscreen}
       </button>
-      <button
-        type="button"
-        className="tv-control"
-        onClick={() => {
-          if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-          if (window.opener) window.close();
-          else go('round');
-        }}
-      >
-        {t.tv.back}
-      </button>
+      {!standalone && (
+        <button
+          type="button"
+          className="tv-control"
+          onClick={() => {
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            if (window.opener) window.close();
+            else go('round');
+          }}
+        >
+          {t.tv.back}
+        </button>
+      )}
     </div>
   );
 }

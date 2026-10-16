@@ -273,6 +273,10 @@ in step 2.
   confirms them in the member form, where duplicates can also be deleted.
 - **Security rules** (`firestore.rules`) are tested against the Firestore emulator
   (`test/rules/`, `npm run test:rules`).
+- **The TV link** (`#/tv/<code>`, in Settings) is for a device of its own at the TV: it joins
+  with the club's code like a phone, shows the court display from the live view, and can't
+  change anything. Replacing the code disconnects it too. On an organiser's device the TV
+  view is the same screen, and never handles phones' requests.
 - **Limits:** two organiser devices editing the same evening at once can overwrite each
   other's change (the last one wins), so run the evening from one device; the TV window
   only shows. Organisers sign in with a popup: a full-page redirect doesn't work on browsers

@@ -531,6 +531,17 @@
   border-radius: 12px;
 }
 
+.phones-qr--small {
+  width: 96px;
+  height: 96px;
+}
+
+.tv-link {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  word-break: break-all;
+}
+
 .phones-actions {
   display: grid;
   justify-items: start;
@@ -578,6 +589,7 @@
 
 .poster-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   gap: 16px;
   min-height: 100dvh;
@@ -670,6 +682,22 @@
   color: var(--ink-soft);
   font-size: 0.75rem;
   word-break: break-all;
+}
+
+/* On a phone screen the poster is a card that fits, not an A4 sheet; printing is unchanged. */
+@media screen and (max-width: 600px) {
+  .poster {
+    aspect-ratio: auto;
+    gap: 22px;
+    padding: 34px 24px 22px;
+    border-width: 8px;
+    outline-width: 2px;
+    outline-offset: -20px;
+  }
+
+  .poster-qr {
+    width: min(100%, 300px);
+  }
 }
 
 @media print {

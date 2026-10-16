@@ -884,6 +884,37 @@
   }
 }
 
+/* Phones: the tabs get a row of their own under the mark and tools, sharing its width, so the
+   count and the round clock fit next to the names. */
+@media (max-width: 600px) {
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: 0;
+    min-height: 0;
+    padding-top: 8px;
+  }
+
+  .tabs {
+    order: 3;
+    flex-basis: 100%;
+    min-height: 46px;
+    margin: 0 calc(-1 * var(--gutter));
+    padding: 0 calc(var(--gutter) - 8px);
+  }
+
+  .tab {
+    flex: 1;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 4px;
+  }
+
+  .tab[aria-current='page']::after {
+    right: 4px;
+    left: 4px;
+  }
+}
+
 /* A friendly evening: results don't move the ratings. */
 .chip--friendly {
   border-color: var(--court);

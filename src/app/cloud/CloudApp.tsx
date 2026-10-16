@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { App } from '../App.tsx';
 import { Shuttle } from '../components/Shuttle.tsx';
 import { Dialog } from '../components/ui.tsx';
-import { TV_WINDOW, go, joinCodeOf, useRoute } from '../hooks.ts';
+import { TV_WINDOW, go, joinCodeOf, tvCodeOf, useRoute } from '../hooks.ts';
 import { PlayScreen } from '../screens/Play.tsx';
+import { TvLink } from '../screens/TvLink.tsx';
 import { localStorageBackend } from '../storage.ts';
 import { StoreContext, useAppState, useDispatch } from '../store.ts';
 import { useStrings } from '../strings.ts';
@@ -22,12 +23,18 @@ export function CloudApp() {
   const route = useRoute();
   const cloud = getCloud();
 
-  // A phone that has joined goes back to the player view, also from its home-screen icon.
+  // A phone or TV that has joined goes back to its view, also from a home-screen icon.
   useEffect(() => {
-    if (!location.hash && localStorage.getItem(ROLE_KEY) === 'player') go('play');
+    if (location.hash) return;
+    const role = localStorage.getItem(ROLE_KEY);
+    if (role === 'player') go('play');
+    if (role === 'tv') go('tv');
   }, []);
 
   if (route === 'play' || route === 'join') return <PlayScreen key={playKey()} cloud={cloud} />;
+  if (route === 'tv' && (tvCodeOf(location.hash) || localStorage.getItem(ROLE_KEY) === 'tv')) {
+    return <TvLink key={tvKey()} cloud={cloud} />;
+  }
   return <OrganiserGate cloud={cloud} />;
 }
 
@@ -38,6 +45,12 @@ let lastJoinCode = '';
 function playKey(): string {
   lastJoinCode = joinCodeOf(location.hash) ?? lastJoinCode;
   return lastJoinCode;
+}
+
+let lastTvCode = '';
+function tvKey(): string {
+  lastTvCode = tvCodeOf(location.hash) ?? lastTvCode;
+  return lastTvCode;
 }
 
 function useUser(auth: Auth): User | null | undefined {
@@ -98,8 +111,9 @@ function OrganiserSession({ cloud, email }: { cloud: Cloud; email: string }) {
 function OrganiserApp({ cloud, settings, email }: { cloud: Cloud; settings: ClubSettings; email: string }) {
   const [store, setStore] = useState<CloudStore | null>(null);
   useEffect(() => {
-    // The TV window only shows; the organiser's main window handles phones' requests.
-    const created = createCloudStore(cloud.db, { handleRequests: window.name !== TV_WINDOW });
+    // A TV view only shows; the organiser's main window handles phones' requests.
+    const tv = window.name === TV_WINDOW || location.hash.startsWith('#/tv');
+    const created = createCloudStore(cloud.db, { handleRequests: !tv });
     let current = true;
     void created.ready.then(() => current && setStore(created));
     return () => {

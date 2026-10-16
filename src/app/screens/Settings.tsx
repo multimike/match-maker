@@ -2,7 +2,7 @@
 // set up, also the players' phones (QR code, poster) and who the organisers are.
 
 import { useRef, useState } from 'react';
-import { joinLink, useCloud, type CloudInfo } from '../cloud/context.ts';
+import { joinLink, tvLink, useCloud, type CloudInfo } from '../cloud/context.ts';
 import { QrCode } from '../components/QrCode.tsx';
 import { Dialog, Segmented, useConfirm } from '../components/ui.tsx';
 import { routeHref } from '../hooks.ts';
@@ -49,6 +49,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t.settings.title} className="dialog--form">
       {cloud && <Phones cloud={cloud} onClose={onClose} />}
+      {cloud && <TvLinkField cloud={cloud} />}
       {cloud && <Organisers cloud={cloud} />}
 
       <div className="field">
@@ -151,6 +152,34 @@ function Phones({ cloud, onClose }: { cloud: CloudInfo; onClose: () => void }) {
             }}
           >
             {t.cloud.newCode}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** The link for a device of its own at the TV: shows the courts, no sign-in. */
+function TvLinkField({ cloud }: { cloud: CloudInfo }) {
+  const t = useStrings();
+  const [copied, setCopied] = useState(false);
+  const link = tvLink(cloud.joinCode);
+  return (
+    <div className="field">
+      <span className="field-label">{t.cloud.tvTitle}</span>
+      <span className="field-hint">{t.cloud.tvHint}</span>
+      <div className="phones">
+        <QrCode text={link} className="phones-qr phones-qr--small" label={t.cloud.tvTitle} />
+        <div className="phones-actions">
+          <span className="tv-link">{link}</span>
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={() => {
+              void navigator.clipboard?.writeText(link).then(() => setCopied(true));
+            }}
+          >
+            {copied ? t.cloud.copied : t.cloud.copyTvLink}
           </button>
         </div>
       </div>

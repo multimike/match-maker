@@ -25,5 +25,10 @@ export function joinLink(code: string): string {
   return `${location.origin}${location.pathname}#/join/${code}`;
 }
 
-/** Whether this device last joined as a player or signed in as an organiser. */
+/** The TV link: the court display, joined with the same code, for a device at the TV. */
+export function tvLink(code: string): string {
+  return `${location.origin}${location.pathname}#/tv/${code}`;
+}
+
+/** Whether this device last joined as a player or a TV, or signed in as an organiser. */
 export const ROLE_KEY = 'matchmaker.role';

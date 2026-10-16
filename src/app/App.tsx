@@ -16,7 +16,7 @@ import { Nav } from './screens/Nav.tsx';
 import { Poster } from './screens/Poster.tsx';
 import { RoundScreen } from './screens/Round.tsx';
 import { Tonight } from './screens/Tonight.tsx';
-import { TvScreen } from './screens/Tv.tsx';
+import { OrganiserTv } from './screens/Tv.tsx';
 import { audioReady, unlockAudio } from './sound.ts';
 import { useAppState, useDispatch, useSaveError } from './store.ts';
 import { STRINGS, StringsContext, useStrings } from './strings.ts';
@@ -48,7 +48,7 @@ export function Shell({ children }: { children: ReactNode }) {
 export function App() {
   const route = useRoute();
   const cloud = useCloud();
-  if (route === 'tv') return <TvScreen />;
+  if (route === 'tv') return <OrganiserTv />;
   if (route === 'play' || route === 'join') return <NoCloud />;
   if (route === 'poster' && cloud) return <Poster />;
   return <Organiser route={route} />;

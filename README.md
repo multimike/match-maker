@@ -51,7 +51,9 @@ players; start fresh afterwards with Settings → Delete all data.
    (the score is optional). Save the results and make the next round.
 4. **TV:** the TV button opens the court display in its own window. Drag it to the TV and
    tap **Start TV mode** for full screen and sound (the 2-minute warning and the buzzer).
-   With a tablet mirrored to the TV, switch to the TV view during play instead.
+   With a tablet mirrored to the TV, switch to the TV view during play instead. With the
+   cloud, a device of its own at the TV can open the **TV link** from Settings: it shows the
+   courts without signing in, and never changes anything.
 
 Without the cloud, everything is saved in the browser on that device; Settings has a backup
 download, which is also how to move to another device. With the cloud, players can do steps

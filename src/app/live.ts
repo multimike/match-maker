@@ -24,6 +24,8 @@ export interface LiveRound {
   resting: string[];
   timer: Timer;
   results: CourtResult[];
+  /** When the round was saved: the TV celebrates for a moment. */
+  finishedAt?: number;
   /** After the round is saved: each player's rating change from it. */
   changes?: Record<string, number>;
 }
@@ -70,6 +72,7 @@ export function liveView(state: AppState): LiveView {
         resting: round.resting,
         timer: round.timer,
         results: round.results,
+        finishedAt: round.finishedAt,
         changes: round.status === 'done' && round.ratingsBefore
           ? Object.fromEntries(Object.entries(round.ratingsBefore).map(([id, before]) => [id, (ratings.get(id) ?? before.rating) - before.rating]))
           : undefined,

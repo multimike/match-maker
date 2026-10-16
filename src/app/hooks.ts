@@ -23,6 +23,11 @@ export function joinCodeOf(hash: string): string | null {
   return /^#\/join\/([A-Za-z0-9_-]+)/.exec(hash)?.[1] ?? null;
 }
 
+/** The club's code in a TV link: #/tv/<code>. */
+export function tvCodeOf(hash: string): string | null {
+  return /^#\/tv\/([A-Za-z0-9_-]+)/.exec(hash)?.[1] ?? null;
+}
+
 /** Whether the device is online, as the browser sees it. */
 export function useOnline(): boolean {
   return useSyncExternalStore(
@@ -136,7 +141,7 @@ export function useTvHeartbeat(audio: boolean) {
 }
 
 /** Plays the start whistle, the 2-minute warning and the buzzer as the round's timer passes them. */
-export function useRoundCues(round: Round | undefined, now: number, isTv: boolean) {
+export function useRoundCues(round: Pick<Round, 'id' | 'status' | 'timer'> | undefined, now: number, isTv: boolean) {
   const { sound } = usePrefs();
   const last = useRef<{ id: string; left: number } | null>(null);
   useEffect(() => {

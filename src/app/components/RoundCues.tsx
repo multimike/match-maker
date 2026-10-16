@@ -4,7 +4,7 @@
 import { useNow, useRoundCues } from '../hooks.ts';
 import type { Round } from '../model.ts';
 
-export function RoundCues({ round, isTv }: { round: Round | undefined; isTv: boolean }) {
+export function RoundCues({ round, isTv }: { round: Pick<Round, 'id' | 'status' | 'timer'> | undefined; isTv: boolean }) {
   const now = useNow(round?.status === 'playing');
   useRoundCues(round, now, isTv);
   return null;
