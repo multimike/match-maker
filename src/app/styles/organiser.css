@@ -923,7 +923,10 @@
 }
 
 .chip--small {
-  margin-left: 8px;
   padding: 0 0.55em;
   font-size: 0.8125rem;
+}
+
+.past-line .chip--small {
+  margin-left: 8px;
 }

@@ -137,13 +137,13 @@ function ActiveRound({ session, round }: { session: Session; round: Round }) {
   const missing = round.results.filter((r) => r.winner === null).length;
 
   const save = async () => {
-    if (missing === 0 || (await confirm(t.rounds.missing(missing), t.rounds.saveAnyway, false))) {
+    if (missing === 0 || (await confirm({ ...t.rounds.missingConfirm(missing), ok: t.rounds.saveAnyway, danger: false }))) {
       dispatch({ type: 'round/save' });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
   const discard = async () => {
-    if (await confirm(t.rounds.discardConfirm(round.number), t.rounds.discard)) dispatch({ type: 'round/discard' });
+    if (await confirm({ ...t.rounds.discardConfirm(round.number), ok: t.rounds.discard })) dispatch({ type: 'round/discard' });
   };
 
   return (
@@ -261,7 +261,7 @@ function TimerPanel({ round }: { round: Round }) {
             type="button"
             className="button button--quiet"
             onClick={async () => {
-              if (await confirm(t.rounds.endNowConfirm, t.rounds.endNow, false)) dispatch({ type: 'timer/finish' });
+              if (await confirm({ ...t.rounds.endNowConfirm, ok: t.rounds.endNow, danger: false })) dispatch({ type: 'timer/finish' });
             }}
           >
             {t.rounds.endNow}

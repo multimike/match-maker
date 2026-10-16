@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { Energy } from '../../engine/engine.ts';
 import { Avatar } from '../components/Avatar.tsx';
-import { Dialog, Segmented, Stepper, useConfirm } from '../components/ui.tsx';
+import { Dialog, Field, Segmented, SettingRow, Stepper, useConfirm } from '../components/ui.tsx';
 import { capacityLines, formatDate } from '../format.ts';
 import { go, useNow } from '../hooks.ts';
 import {
@@ -57,24 +57,18 @@ function OpenForm() {
         <h1 className="open-title">{t.open.title}</h1>
         <p className="page-lead">{t.open.lead}</p>
         <div className="open-fields">
-          <div className="field">
-            <span className="field-label">{t.open.kind}</span>
+          <Field label={t.open.kind} hint={friendly ? t.open.friendlyHint : t.open.ratedHint}>
             <Segmented label={t.open.kind} value={friendly} onChange={setFriendly} options={[{ value: false, label: t.open.rated }, { value: true, label: t.open.friendly }]} />
-            <span className="field-hint">{friendly ? t.open.friendlyHint : t.open.ratedHint}</span>
-          </div>
-          <div className="field">
-            <span className="field-label">{t.open.courts}</span>
+          </Field>
+          <Field label={t.open.courts}>
             <Stepper label={t.open.courts} value={courts} min={1} max={MAX_COURTS} onChange={setCourts} />
-          </div>
-          <div className="field">
-            <span className="field-label">{t.open.roundLength}</span>
+          </Field>
+          <Field label={t.open.roundLength}>
             <Segmented label={t.open.roundLength} value={minutes} onChange={setMinutes} options={ROUND_MINUTES.map((m) => ({ value: m, label: t.minutes(m) }))} />
-          </div>
-          <label className="field">
-            <span className="field-label">{t.open.softLimit}</span>
-            <input className="input input--number" type="number" inputMode="numeric" min={2} value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="–" />
-            <span className="field-hint">{t.open.softLimitHint}</span>
-          </label>
+          </Field>
+          <Field label={t.open.softLimit} hint={t.open.softLimitHint} htmlFor="open-soft-limit">
+            <input id="open-soft-limit" className="input input--number" type="number" inputMode="numeric" min={2} value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="–" />
+          </Field>
         </div>
         <button type="submit" className="button button--primary button--big">
           {t.open.submit}
@@ -133,7 +127,7 @@ function OpenEvening({ session }: { session: Session }) {
   };
 
   const endEvening = async () => {
-    if (await confirm(t.tonight.endConfirm, t.tonight.end, false)) dispatch({ type: 'session/close' });
+    if (await confirm({ ...t.tonight.endConfirm, ok: t.tonight.end, danger: false })) dispatch({ type: 'session/close' });
   };
 
   const sheetMember = sheet ? state.members.find((m) => m.id === sheet) : undefined;
@@ -293,31 +287,42 @@ function PlayerSheet({ member, session, onClose, onEdit }: { member: Member; ses
   if (!isHere(c)) return null;
   const update = (change: { energy?: Energy; restOk?: boolean; skip?: boolean }) => dispatch({ type: 'checkIn/update', memberId: member.id, ...change });
   return (
-    <Dialog open onClose={onClose} title={member.name} className="dialog--sheet">
-      <div className="sheet-who">
-        <Avatar id={member.id} name={member.name} className="avatar--big" />
-      </div>
-      <p className="field-label">{t.tonight.energyTonight}</p>
-      <div className="energy-choices" role="radiogroup" aria-label={t.tonight.energyTonight}>
-        {(['challenge', 'normal', 'easy'] as Energy[]).map((e) => (
-          <button key={e} type="button" role="radio" aria-checked={c.energy === e} className="energy" onClick={() => update({ energy: e })}>
-            <span className="energy-emoji" aria-hidden="true">{ENERGY_EMOJI[e]}</span>
-            {t.energy[e]}
-          </button>
-        ))}
-      </div>
-      {c.energy === 'easy' && (
+    <Dialog
+      open
+      onClose={onClose}
+      title={member.name}
+      variant="sheet"
+      media={<Avatar id={member.id} name={member.name} className="avatar--big" />}
+      footer={
+        <button type="button" className="button button--primary" onClick={onClose}>
+          {t.done}
+        </button>
+      }
+    >
+      <Field label={t.tonight.energyTonight}>
+        <div className="energy-choices" role="radiogroup" aria-label={t.tonight.energyTonight}>
+          {(['challenge', 'normal', 'easy'] as Energy[]).map((e) => (
+            <button key={e} type="button" role="radio" aria-checked={c.energy === e} className="energy" onClick={() => update({ energy: e })}>
+              <span className="energy-emoji" aria-hidden="true">{ENERGY_EMOJI[e]}</span>
+              {t.energy[e]}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <div className="toggles">
+        {c.energy === 'easy' && (
+          <label className="toggle">
+            <input type="checkbox" checked={c.restOk} onChange={(e) => update({ restOk: e.target.checked })} />
+            <span>{REST_EMOJI} {t.restOk}</span>
+          </label>
+        )}
         <label className="toggle">
-          <input type="checkbox" checked={c.restOk} onChange={(e) => update({ restOk: e.target.checked })} />
-          <span>{REST_EMOJI} {t.restOk}</span>
+          <input type="checkbox" checked={c.skip} onChange={(e) => update({ skip: e.target.checked })} />
+          <span>{SKIP_EMOJI} {t.skip}</span>
         </label>
-      )}
-      <label className="toggle">
-        <input type="checkbox" checked={c.skip} onChange={(e) => update({ skip: e.target.checked })} />
-        <span>{SKIP_EMOJI} {t.skip}</span>
-      </label>
-      <div className="dialog-actions">
-        <button type="button" className="button button--quiet dialog-actions-start" onClick={onEdit}>
+      </div>
+      <div className="dialog-more">
+        <button type="button" className="button button--quiet" onClick={onEdit}>
           {t.tonight.editMember}
         </button>
         <button
@@ -330,9 +335,6 @@ function PlayerSheet({ member, session, onClose, onEdit }: { member: Member; ses
         >
           {t.tonight.checkOut}
         </button>
-        <button type="button" className="button button--primary" onClick={onClose}>
-          {t.done}
-        </button>
       </div>
     </Dialog>
   );
@@ -343,24 +345,31 @@ function EveningSettings({ session, onClose }: { session: Session; onClose: () =
   const dispatch = useDispatch();
   const [limit, setLimit] = useState(session.softLimit ? String(session.softLimit) : '');
   return (
-    <Dialog open onClose={onClose} title={t.tonight.settingsTitle} className="dialog--form">
-      <p className="field-hint">{t.tonight.settingsHint}</p>
-      <div className="field">
-        <span className="field-label">{t.open.courts}</span>
+    <Dialog
+      open
+      onClose={onClose}
+      title={t.tonight.settingsTitle}
+      lead={t.tonight.settingsHint}
+      footer={
+        <button type="button" className="button button--primary" onClick={onClose}>
+          {t.done}
+        </button>
+      }
+    >
+      <SettingRow label={t.open.courts}>
         <Stepper label={t.open.courts} value={session.courts} min={1} max={MAX_COURTS} onChange={(courts) => dispatch({ type: 'session/update', courts })} />
-      </div>
-      <div className="field">
-        <span className="field-label">{t.open.roundLength}</span>
+      </SettingRow>
+      <SettingRow label={t.open.roundLength}>
         <Segmented
           label={t.open.roundLength}
           value={session.roundMinutes}
           onChange={(roundMinutes) => dispatch({ type: 'session/update', roundMinutes })}
           options={ROUND_MINUTES.map((m) => ({ value: m, label: t.minutes(m) }))}
         />
-      </div>
-      <label className="field">
-        <span className="field-label">{t.open.softLimit}</span>
+      </SettingRow>
+      <SettingRow label={t.open.softLimit} hint={t.open.softLimitHint} htmlFor="evening-soft-limit">
         <input
+          id="evening-soft-limit"
           className="input input--number"
           type="number"
           inputMode="numeric"
@@ -373,12 +382,7 @@ function EveningSettings({ session, onClose }: { session: Session; onClose: () =
             dispatch({ type: 'session/update', softLimit: softLimit > 0 ? softLimit : null });
           }}
         />
-      </label>
-      <div className="dialog-actions">
-        <button type="button" className="button button--primary" onClick={onClose}>
-          {t.done}
-        </button>
-      </div>
+      </SettingRow>
     </Dialog>
   );
 }

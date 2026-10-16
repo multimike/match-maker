@@ -14,7 +14,7 @@ import { ScoreEntry } from '../components/CourtCard.tsx';
 import { CourtView, type Tag } from '../components/CourtView.tsx';
 import { PrefIcon } from '../components/PrefIcon.tsx';
 import { Confetti, Shuttle } from '../components/Shuttle.tsx';
-import { Segmented, useConfirm } from '../components/ui.tsx';
+import { Field, Segmented, useConfirm } from '../components/ui.tsx';
 import { formatDate, signed } from '../format.ts';
 import { joinCodeOf, useNow } from '../hooks.ts';
 import type { LiveCheckIn, LiveRound, LiveSession } from '../live.ts';
@@ -177,8 +177,7 @@ function WhoAreYou({ client, members }: { client: PlayerClient; members: Member[
 function PrefChoice({ value, onChange }: { value: Pref; onChange: (pref: Pref) => void }) {
   const t = useStrings();
   return (
-    <div className="field">
-      <span className="field-label">{t.phone.prefers}</span>
+    <Field label={t.phone.prefers}>
       <Segmented
         label={t.phone.prefers}
         value={value}
@@ -192,7 +191,7 @@ function PrefChoice({ value, onChange }: { value: Pref; onChange: (pref: Pref) =
           ),
         }))}
       />
-    </div>
+    </Field>
   );
 }
 
@@ -278,21 +277,17 @@ function NewPlayer({ client, name: initialName, onBack }: { client: PlayerClient
       }}
     >
       <h1 className="phone-title">{t.phone.newTitle}</h1>
-      <label className="field">
-        <span className="field-label">{t.form.name}</span>
-        <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME} autoComplete="given-name" required />
-        <span className="field-hint">{t.phone.nameHint}</span>
-      </label>
-      <div className="field">
-        <span className="field-label">{t.form.group}</span>
+      <Field label={t.form.name} hint={t.phone.nameHint} htmlFor="new-player-name">
+        <input id="new-player-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME} autoComplete="given-name" required />
+      </Field>
+      <Field label={t.form.group} hint={t.phone.groupHint}>
         <Segmented<Group | 0>
           label={t.form.group}
           value={group}
           onChange={setGroup}
           options={[1, 2].map((g) => ({ value: g as Group, label: t.members.groupN(g) }))}
         />
-        <span className="field-hint">{t.phone.groupHint}</span>
-      </div>
+      </Field>
       <PrefChoice value={pref} onChange={setPref} />
       <Consent checked={consent} onChange={setConsent} />
       <button type="submit" className="button button--primary button--big button--wide" disabled={!ready}>
@@ -581,7 +576,7 @@ function TonightCard({ client, me, checkIn }: { client: PlayerClient; me: Member
         type="button"
         className="button button--danger-quiet phone-checkout"
         onClick={async () => {
-          if (await confirm(t.phone.checkOutConfirm, t.phone.checkOut, false)) void client.send({ type: 'checkOut', memberId: me.id });
+          if (await confirm({ ...t.phone.checkOutConfirm, ok: t.phone.checkOut, danger: false })) void client.send({ type: 'checkOut', memberId: me.id });
         }}
       >
         {t.phone.checkOut}

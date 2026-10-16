@@ -164,23 +164,30 @@ function MoveLocalData() {
     setAsked(true);
   };
   return (
-    <Dialog open onClose={done} title={t.cloud.moveTitle} className="dialog--form">
-      <p>{t.cloud.moveLead(local.members.length, local.sessions.length)}</p>
-      <div className="dialog-actions">
-        <button type="button" className="button button--quiet" onClick={done}>
-          {t.cloud.moveSkip}
-        </button>
-        <button
-          type="button"
-          className="button button--primary"
-          onClick={() => {
-            dispatch({ type: 'state/replace', state: local });
-            done();
-          }}
-        >
-          {t.cloud.moveCopy}
-        </button>
-      </div>
+    <Dialog
+      open
+      onClose={done}
+      title={t.cloud.moveTitle}
+      variant="alert"
+      footer={
+        <>
+          <button type="button" className="button button--quiet" onClick={done}>
+            {t.cloud.moveSkip}
+          </button>
+          <button
+            type="button"
+            className="button button--primary"
+            onClick={() => {
+              dispatch({ type: 'state/replace', state: local });
+              done();
+            }}
+          >
+            {t.cloud.moveCopy}
+          </button>
+        </>
+      }
+    >
+      <p className="confirm-message">{t.cloud.moveLead(local.members.length, local.sessions.length)}</p>
     </Dialog>
   );
 }

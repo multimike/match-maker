@@ -1,11 +1,11 @@
 // Adding and editing a member: name, usual group, singles/doubles preference, competition
 // partner, and (for existing members) a rating nudge.
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { Pref } from '../../engine/engine.ts';
 import { RATING, isProvisional } from '../../engine/rating.ts';
 import { PrefIcon } from '../components/PrefIcon.tsx';
-import { Dialog, Segmented, useConfirm } from '../components/ui.tsx';
+import { Dialog, Field, Section, Segmented, SettingRow, useConfirm } from '../components/ui.tsx';
 import { PARTNER_SHARES, type Group, type Member } from '../model.ts';
 import type { MemberInput } from '../state.ts';
 import { newId, useAppState, useDispatch } from '../store.ts';
@@ -34,6 +34,7 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
   const [partnerId, setPartnerId] = useState<string | null>(member?.partnerId ?? null);
   const [share, setShare] = useState(member?.partnerShare ?? 0.5);
   const [rating, setRating] = useState(member ? Math.round(member.rating) : 0);
+  const formId = useId();
 
   const others = members.filter((m) => m.id !== member?.id).sort((a, b) => a.name.localeCompare(b.name, t.locale));
   const input: MemberInput = { name, group, pref, partnerId, partnerShare: share };
@@ -52,16 +53,30 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
   };
 
   const remove = async () => {
-    if (member && (await confirm(t.form.deleteConfirm(member.name), t.form.delete))) {
+    if (member && (await confirm({ ...t.form.deleteConfirm(member.name), ok: t.form.delete }))) {
       dispatch({ type: 'member/delete', id: member.id });
       onClose();
     }
   };
 
   return (
-    <Dialog open onClose={onClose} title={member ? t.form.editTitle : t.form.addTitle} className="dialog--form">
+    <Dialog
+      open
+      onClose={onClose}
+      title={member ? t.form.editTitle : t.form.addTitle}
+      footer={
+        <>
+          <button type="button" className="button button--quiet" onClick={onClose}>
+            {t.cancel}
+          </button>
+          <button type="submit" form={formId} className="button button--primary" disabled={!name.trim()}>
+            {member ? t.save : t.form.add}
+          </button>
+        </>
+      }
+    >
       {member?.status === 'new' && (
-        <div className="notice notice--form">
+        <div className="notice">
           <span>{t.form.newNotice}</span>
           <button
             type="button"
@@ -75,32 +90,29 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
           </button>
         </div>
       )}
+
       <form
+        id={formId}
         className="form"
         onSubmit={(e) => {
           e.preventDefault();
           submit();
         }}
       >
-        <label className="field">
-          <span className="field-label">{t.form.name}</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoFocus required maxLength={40} autoComplete="off" />
-          <span className="field-hint">{t.form.nameHint}</span>
-        </label>
+        <Field label={t.form.name} hint={t.form.nameHint} htmlFor={`${formId}-name`}>
+          <input id={`${formId}-name`} className="input" value={name} onChange={(e) => setName(e.target.value)} data-autofocus={member ? undefined : true} required maxLength={40} autoComplete="off" />
+        </Field>
 
-        <div className="field">
-          <span className="field-label">{t.form.group}</span>
+        <Field label={t.form.group} hint={t.form.groupHint(RATING.start[1], RATING.start[2])}>
           <Segmented
             label={t.form.group}
             value={group}
             onChange={setGroup}
             options={[1, 2].map((g) => ({ value: g as Group, label: t.members.groupN(g) }))}
           />
-          <span className="field-hint">{t.form.groupHint(RATING.start[1], RATING.start[2])}</span>
-        </div>
+        </Field>
 
-        <div className="field">
-          <span className="field-label">{t.form.prefers}</span>
+        <Field label={t.form.prefers}>
           <Segmented
             label={t.form.prefers}
             value={pref}
@@ -114,11 +126,10 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
               ),
             }))}
           />
-        </div>
+        </Field>
 
-        <div className="field">
-          <label className="field-label" htmlFor="partner">{t.form.partner}</label>
-          <select id="partner" className="input" value={partnerId ?? ''} onChange={(e) => setPartnerId(e.target.value || null)}>
+        <Field label={t.form.partner} htmlFor={`${formId}-partner`}>
+          <select id={`${formId}-partner`} className="input" value={partnerId ?? ''} onChange={(e) => setPartnerId(e.target.value || null)}>
             <option value="">{t.form.noPartner}</option>
             {others.map((m) => (
               <option key={m.id} value={m.id}>
@@ -135,20 +146,25 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
               options={PARTNER_SHARES.map((s, i) => ({ value: s, label: t.form.shares[i] }))}
             />
           )}
-        </div>
+        </Field>
 
         {member && (
-          <div className="field">
-            <label className="field-label" htmlFor="rating">
-              {t.form.rating}
-              {isProvisional(member) && <span className="prov-tag">{t.members.provisional}</span>}
-            </label>
+          <Field
+            label={
+              <>
+                {t.form.rating}
+                {isProvisional(member) && <span className="prov-tag">{t.members.provisional}</span>}
+              </>
+            }
+            hint={t.form.ratingHint}
+            htmlFor={`${formId}-rating`}
+          >
             <div className="rating-nudge">
               <button type="button" className="button button--quiet" onClick={() => setRating((r) => r - 25)}>
                 −25
               </button>
               <input
-                id="rating"
+                id={`${formId}-rating`}
                 className="input input--number"
                 type="number"
                 inputMode="numeric"
@@ -160,24 +176,19 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
                 +25
               </button>
             </div>
-            <span className="field-hint">{t.form.ratingHint}</span>
-          </div>
+          </Field>
         )}
-
-        <div className="dialog-actions">
-          {member && (
-            <button type="button" className="button button--danger-quiet dialog-actions-start" onClick={remove}>
-              {t.form.delete}
-            </button>
-          )}
-          <button type="button" className="button button--quiet" onClick={onClose}>
-            {t.cancel}
-          </button>
-          <button type="submit" className="button button--primary" disabled={!name.trim()}>
-            {member ? t.save : t.form.add}
-          </button>
-        </div>
       </form>
+
+      {member && (
+        <Section title={t.settings.danger} danger>
+          <SettingRow label={t.form.delete} hint={t.form.deleteHint}>
+            <button type="button" className="button button--danger-quiet" onClick={remove}>
+              {t.settings.deleteButton}
+            </button>
+          </SettingRow>
+        </Section>
+      )}
     </Dialog>
   );
 }
