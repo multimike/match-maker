@@ -13,7 +13,7 @@
     "sim": "node sim/simulate.ts",
     "icons": "npx --yes @vite-pwa/assets-generator@2.0.0 --config tools/pwa-assets.config.js",
     "test:rules": "npx --yes firebase-tools@15.34.0 emulators:exec --only firestore --project demo-matchmaker \"vitest run --config vitest.rules.config.ts\"",
-    "emulators": "npx --yes firebase-tools@15.34.0 emulators:start --only auth,firestore --project demo-matchmaker",
+    "emulators": "sh -c 'npx --yes firebase-tools@15.34.0 emulators:start --only auth,firestore --project demo-matchmaker --export-on-exit .emulator-data $( [ -f .emulator-data/firebase-export-metadata.json ] && echo --import .emulator-data )'",
     "dev:cloud": "VITE_FIREBASE_EMULATOR=1 vite --port 5174 --host 127.0.0.1",
     "deploy:rules": "npx --yes firebase-tools@15.34.0 deploy --only firestore:rules,firestore:indexes"
   },

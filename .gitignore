@@ -4,3 +4,4 @@ node_modules/
 dist/
 firestore-debug.log
 *-debug.log
+.emulator-data/
