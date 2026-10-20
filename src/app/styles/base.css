@@ -231,10 +231,17 @@ a.button {
   color: var(--ink-soft);
 }
 
-.segment[aria-checked='true'] {
+.segment[aria-checked='true'],
+.segment[aria-pressed='true'] {
   background: var(--paper);
   color: var(--ink);
   box-shadow: 0 2px 0 var(--rule);
+}
+
+/* Several can be chosen: the pressed ones get a tick. */
+.segmented--multi .segment[aria-pressed='true']::before {
+  content: '✓';
+  color: var(--court);
 }
 
 .segment[aria-checked='true'] .pref-icon {

@@ -199,7 +199,8 @@ Stylish and inviting, slightly playful, and unmistakably badminton:
 - **members:** name, rating, matches played (provisional until ~10), training group,
   singles/doubles preference, fixed partner and how often, status (new / confirmed),
   consent date.
-- **sessions:** date, courts, round length, soft limit, `cap` (empty for now), state.
+- **sessions:** date, courts, round length, soft limit, `cap` (empty for now), state, and the
+  training groups expected (their players are listed for check-in; anyone can still check in).
 - **registrations** (later): session, member. Kept separate from check-ins.
 - **checkIns:** session, member, energy level, arrived / left, skip next round.
 - **rounds:** session, number, courts (type and teams), resting players.

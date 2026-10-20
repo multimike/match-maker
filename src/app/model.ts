@@ -106,6 +106,8 @@ export interface Session {
   roundMinutes: number;
   /** Warn when more players than this are checked in. */
   softLimit?: number;
+  /** The training groups expected tonight, listed first for check-in; missing means everyone. */
+  groups?: Group[];
   /** Hard cap, not used yet: see "Overbooking" in docs/design.md. */
   cap: null;
   /** Friendly evening: same matchmaking, but results don't change ratings or the history. */
@@ -152,6 +154,11 @@ export function groupStart(groups: TrainingGroup[], id: Group): number {
 /** Players in a group with hidden ratings see no numbers, and aren't in the ranking. */
 export function hidesRating(groups: TrainingGroup[], member: Pick<Member, 'group'>): boolean {
   return groups.find((g) => g.id === member.group)?.hideRating === true;
+}
+
+/** Whether the member's group is expected tonight. Anyone can still check in. */
+export function isExpected(session: Pick<Session, 'groups'>, member: Pick<Member, 'group'>): boolean {
+  return !session.groups || session.groups.includes(member.group);
 }
 
 /** The ranking players see: highest rating first, without players whose ratings are hidden. */

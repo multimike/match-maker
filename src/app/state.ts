@@ -59,8 +59,9 @@ export type Action =
   | { type: 'group/update'; id: Group; group: GroupInput }
   /** The group's players move to `moveTo` first. */
   | { type: 'group/delete'; id: Group; moveTo: Group }
-  | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number; friendly?: boolean }
-  | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null }
+  /** `groups`: the training groups expected tonight; missing means everyone. */
+  | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number; friendly?: boolean; groups?: Group[] }
+  | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null; groups?: Group[] | null }
   | { type: 'session/close' }
   | { type: 'checkIn'; memberId: string }
   | { type: 'checkIn/update'; memberId: string; energy?: Energy; restOk?: boolean; skip?: boolean }
@@ -196,6 +197,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         softLimit: action.softLimit,
         cap: null,
         ...(action.friendly ? { friendly: true } : {}),
+        ...expectedGroups(state, action.groups),
         state: 'open',
         checkIns: {},
         rounds: [],
@@ -211,6 +213,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         courts: action.courts ?? s.courts,
         roundMinutes: action.roundMinutes ?? s.roundMinutes,
         softLimit: action.softLimit === null ? undefined : action.softLimit ?? s.softLimit,
+        ...(action.groups === undefined ? {} : { groups: expectedGroups(state, action.groups ?? undefined).groups }),
         // A round that hasn't started yet takes the new length.
         rounds: action.roundMinutes === undefined ? s.rounds : s.rounds.map((r) =>
           r.status === 'planned' ? { ...r, timer: newTimer(action.roundMinutes!) } : r),
@@ -360,6 +363,12 @@ function closeSession(state: AppState, now: number): AppState {
     closedAt: now,
     rounds: s.rounds.filter((r) => r.status === 'done').map(({ ratingsBefore: _gone, ...r }) => ({ ...r, players: [] })),
   }));
+}
+
+/** Tonight's expected groups: only groups that exist, and none listed when that's all of them. */
+function expectedGroups(state: AppState, groups: Group[] | undefined): { groups?: Group[] } {
+  const known = state.groups.filter((g) => groups?.includes(g.id)).map((g) => g.id);
+  return known.length === 0 || known.length === state.groups.length ? {} : { groups: known };
 }
 
 /** A player's rating in a new group: before any rated match it's just the group's starting point. */

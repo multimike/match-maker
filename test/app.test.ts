@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { seededRandom } from '../src/engine/random.ts';
 import { RATING, rateRound } from '../src/engine/rating.ts';
-import { capacity, emptyState, hidesRating, latestRound, openSession, ranking, type AppState } from '../src/app/model.ts';
+import { capacity, emptyState, hidesRating, isExpected, latestRound, openSession, ranking, type AppState } from '../src/app/model.ts';
 import { isUpset, pickWinner, resultFromScore, winnerFromScore } from '../src/app/results.ts';
 import { reduce, type Action, type MemberInput } from '../src/app/state.ts';
 import { addTime, finishTimer, newTimer, pauseTimer, remaining, resumeTimer, startTimer, timerPhase } from '../src/app/timer.ts';
@@ -315,4 +315,21 @@ test('training groups: starting ratings, hidden ratings, moving players and dele
   o.do({ type: 'group/delete', id: 3, moveTo: 2 });
   expect(o.state.groups.map((g) => g.id)).toEqual([1, 2]);
   expect([get('Kim').group, get('Kim').rating, get('Lo').group, get('Lo').rating]).toEqual([2, 1290, 2, RATING.start[2]]);
+});
+
+test('an evening lists the groups expected tonight; all of them means everyone', () => {
+  const o = organiser();
+  o.do({ type: 'group/add', group: { name: 'Barn', start: 1100, hideRating: true } });
+  o.do({ type: 'session/open', courts: 2, roundMinutes: 8, groups: [3, 9] }); // 9 doesn't exist
+  expect(session(o.state).groups).toEqual([3]);
+  expect(isExpected(session(o.state), { group: 3 })).toBe(true);
+  expect(isExpected(session(o.state), { group: 1 })).toBe(false);
+
+  o.do({ type: 'session/update', groups: [1, 2, 3] });
+  expect(session(o.state).groups).toBeUndefined();
+  expect(isExpected(session(o.state), { group: 1 })).toBe(true);
+  o.do({ type: 'session/update', groups: [2, 3] }, { type: 'session/update', courts: 3 });
+  expect(session(o.state).groups).toEqual([2, 3]);
+  o.do({ type: 'session/update', groups: null });
+  expect(session(o.state).groups).toBeUndefined();
 });

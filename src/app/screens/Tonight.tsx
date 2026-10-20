@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { Energy } from '../../engine/engine.ts';
 import { Avatar } from '../components/Avatar.tsx';
+import { GroupsChoice } from '../components/GroupChoice.tsx';
 import { Dialog, Field, Segmented, SettingRow, Stepper, useConfirm } from '../components/ui.tsx';
 import { capacityLines, formatDate, groupName } from '../format.ts';
 import { go, useNow } from '../hooks.ts';
@@ -11,6 +12,7 @@ import {
   MAX_COURTS,
   ROUND_MINUTES,
   capacity,
+  isExpected,
   isHere,
   latestRound,
   localDate,
@@ -36,8 +38,13 @@ export function Tonight() {
 function OpenForm() {
   const t = useStrings();
   const dispatch = useDispatch();
-  const { sessions } = useAppState();
+  const { sessions, groups } = useAppState();
   const last = sessions[sessions.length - 1];
+  // The groups expected last time, as long as they still exist.
+  const [expected, setExpected] = useState(() => {
+    const known = last?.groups?.filter((id) => groups.some((g) => g.id === id));
+    return known?.length ? known : undefined;
+  });
   const [courts, setCourts] = useState(last?.courts ?? DEFAULT_COURTS);
   const [minutes, setMinutes] = useState(last?.roundMinutes ?? ROUND_MINUTES.default);
   const [limit, setLimit] = useState(last?.softLimit ? String(last.softLimit) : '');
@@ -51,12 +58,17 @@ function OpenForm() {
         onSubmit={(e) => {
           e.preventDefault();
           const softLimit = Number.parseInt(limit, 10);
-          dispatch({ type: 'session/open', courts, roundMinutes: minutes, softLimit: softLimit > 0 ? softLimit : undefined, friendly });
+          dispatch({ type: 'session/open', courts, roundMinutes: minutes, softLimit: softLimit > 0 ? softLimit : undefined, friendly, groups: expected });
         }}
       >
         <h1 className="open-title">{t.open.title}</h1>
         <p className="page-lead">{t.open.lead}</p>
         <div className="open-fields">
+          {groups.length > 1 && (
+            <Field label={t.open.groups} hint={t.open.groupsHint}>
+              <GroupsChoice label={t.open.groups} groups={groups} value={expected} onChange={setExpected} />
+            </Field>
+          )}
           <Field label={t.open.kind} hint={friendly ? t.open.friendlyHint : t.open.ratedHint}>
             <Segmented label={t.open.kind} value={friendly} onChange={setFriendly} options={[{ value: false, label: t.open.rated }, { value: true, label: t.open.friendly }]} />
           </Field>
@@ -85,6 +97,11 @@ function OpenForm() {
                 <span className="past-line">
                   {t.open.pastLine(Object.keys(s.checkIns).length, s.rounds.length)}
                   {s.friendly && <span className="chip chip--small">{t.open.friendly}</span>}
+                  {s.groups?.map((id) => (
+                    <span key={id} className="chip chip--small">
+                      {groupName(t, groups.find((g) => g.id === id))}
+                    </span>
+                  ))}
                 </span>
               </li>
             ))}
@@ -109,6 +126,7 @@ function OpenEvening({ session }: { session: Session }) {
   const [editing, setEditing] = useState<Member | null>(null);
   const [settings, setSettings] = useState(false);
   const [staleDismissed, setStaleDismissed] = useState(false);
+  const [everyone, setEveryone] = useState(false);
 
   const here = state.members.filter((m) => isHere(session.checkIns[m.id]));
   const skipping = here.filter((m) => session.checkIns[m.id].skip).length;
@@ -116,10 +134,14 @@ function OpenEvening({ session }: { session: Session }) {
   const stale = session.date !== localDate(Date.now()) && !staleDismissed;
 
   const q = query.trim().toLowerCase();
+  // Players from tonight's groups, and anyone else who has checked in. A search finds everyone.
+  const listed = (m: Member) => everyone || q !== '' || isExpected(session, m) || session.checkIns[m.id] !== undefined;
   const tiles = [...state.members]
     .sort((a, b) => a.name.localeCompare(b.name, t.locale))
+    .filter(listed)
     .filter((m) => !q || m.name.toLowerCase().includes(q))
     .filter((m) => filter === 'all' || (filter === 'here') === isHere(session.checkIns[m.id]));
+  const unlisted = state.members.filter((m) => !isExpected(session, m) && session.checkIns[m.id] === undefined).length;
 
   const tap = (m: Member) => {
     if (isHere(session.checkIns[m.id])) setSheet(m.id);
@@ -154,6 +176,11 @@ function OpenEvening({ session }: { session: Session }) {
             {session.friendly && <span className="chip chip--friendly">{t.open.friendly}</span>}
             <span className="chip">{t.courts(session.courts)}</span>
             <span className="chip">{t.minutes(session.roundMinutes)}</span>
+            {session.groups?.map((id) => (
+              <span key={id} className="chip">
+                {groupName(t, state.groups.find((g) => g.id === id))}
+              </span>
+            ))}
             <button type="button" className="chip chip--button" onClick={() => setSettings(true)}>
               {t.tonight.settings}
             </button>
@@ -212,6 +239,11 @@ function OpenEvening({ session }: { session: Session }) {
               </button>
             </li>
           </ul>
+          {!q && unlisted > 0 && (
+            <button type="button" className="link-button checkin-everyone" onClick={() => setEveryone(!everyone)}>
+              {everyone ? t.tonight.showExpected : t.tonight.showEveryone(unlisted)}
+            </button>
+          )}
         </section>
 
         <aside className="evening-panel">
@@ -350,6 +382,7 @@ function EveningSettings({ session, onClose }: { session: Session; onClose: () =
   const t = useStrings();
   const dispatch = useDispatch();
   const [limit, setLimit] = useState(session.softLimit ? String(session.softLimit) : '');
+  const { groups } = useAppState();
   return (
     <Dialog
       open
@@ -362,6 +395,11 @@ function EveningSettings({ session, onClose }: { session: Session; onClose: () =
         </button>
       }
     >
+      {groups.length > 1 && (
+        <SettingRow label={t.open.groups} hint={t.open.groupsHint}>
+          <GroupsChoice label={t.open.groups} groups={groups} value={session.groups} onChange={(expected) => dispatch({ type: 'session/update', groups: expected ?? null })} />
+        </SettingRow>
+      )}
       <SettingRow label={t.open.courts}>
         <Stepper label={t.open.courts} value={session.courts} min={1} max={MAX_COURTS} onChange={(courts) => dispatch({ type: 'session/update', courts })} />
       </SettingRow>

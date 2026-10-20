@@ -307,7 +307,8 @@
   color: rgb(255 255 255 / 80%);
 }
 
-.open-card .segment[aria-checked='true'] {
+.open-card .segment[aria-checked='true'],
+.open-card .segment[aria-pressed='true'] {
   color: var(--ink);
 }
 
@@ -465,6 +466,10 @@
   border: 2px dashed currentColor;
   border-radius: 50%;
   font-size: 1.3rem;
+}
+
+.checkin-everyone {
+  margin-top: 14px;
 }
 
 .tiles-none {
