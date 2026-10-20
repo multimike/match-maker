@@ -59,10 +59,6 @@ button.court-half:focus-visible {
   outline-offset: -0.8cqw;
 }
 
-.court--singles .court-half {
-  font-size: 6cqw;
-}
-
 /* The winning side's name tags turn nylon yellow, with a line around their half. */
 .court[data-winner='0'] .court-half--a,
 .court[data-winner='1'] .court-half--b {
@@ -104,9 +100,15 @@ button.court-half:focus-visible {
 }
 
 .tag-avatar.avatar {
-  font-size: 0.62em;
-  width: 2.6em;
-  height: 2.6em;
+  flex: none;
+  font-size: 0.55em;
+  width: 2.5em;
+  height: 2.5em;
+}
+
+/* A long name is a little smaller, and a first and last name can take two lines. */
+.tag--long {
+  font-size: 0.86em;
 }
 
 .tag-text {
@@ -116,8 +118,11 @@ button.court-half:focus-visible {
 }
 
 .tag-name {
+  display: -webkit-box;
   overflow: hidden;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   text-overflow: ellipsis;
 }
 
@@ -312,10 +317,6 @@ button.court-half:focus-visible {
 
 .court-card--tv .court-half {
   font-size: 5.8cqw;
-}
-
-.court-card--tv .court--singles .court-half {
-  font-size: 7cqw;
 }
 
 .court-card--tv .upset-tag {

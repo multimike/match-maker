@@ -44,12 +44,16 @@ function CourtLines() {
   );
 }
 
+/** Names longer than this get a slightly smaller size, so more of them fit on one line. */
+const LONG_NAME = 9;
+
 function NameTag({ tag }: { tag: Tag }) {
   return (
-    <span className="tag">
+    <span className={`tag${tag.name.length > LONG_NAME ? ' tag--long' : ''}`}>
       <Avatar id={tag.id} name={tag.name} className="tag-avatar" />
       <span className="tag-text">
-        <span className="tag-name">{tag.name}</span>
+        {/* An initial after the name stays with it: "Mikael N", never "Mikael" over "N". */}
+        <span className="tag-name">{tag.name.replace(/ (\S{1,2})$/, '\u00a0$1')}</span>
         {tag.note && <span className="tag-note">{tag.note}</span>}
       </span>
     </span>
