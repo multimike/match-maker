@@ -3,7 +3,7 @@
 
 .court {
   position: relative;
-  aspect-ratio: 1340 / 610;
+  aspect-ratio: 1420 / 690; /* the court and its strip of green: COURT_ASPECT in CourtView.tsx */
   border-radius: var(--radius-court);
   background: var(--court);
   color: var(--ink);

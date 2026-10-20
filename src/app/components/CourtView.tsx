@@ -28,10 +28,16 @@ interface CourtViewProps {
 }
 
 // Court lines in centimetres: doubles and singles sidelines, long and short service lines,
-// centre lines. Lines are 4 cm wide; drawn a little wider so they survive scaling down.
+// centre lines. Lines are 4 cm wide; drawn a little wider so they survive scaling down. A strip
+// of green around the court keeps the outer lines off the edge, so they never run into a light
+// background.
+const COURT_RUNOFF = 40;
+export const COURT_ASPECT = (1340 + 2 * COURT_RUNOFF) / (610 + 2 * COURT_RUNOFF);
+
 function CourtLines() {
+  const r = COURT_RUNOFF;
   return (
-    <svg className="court-lines" viewBox="0 0 1340 610" aria-hidden="true">
+    <svg className="court-lines" viewBox={`${-r} ${-r} ${1340 + 2 * r} ${610 + 2 * r}`} aria-hidden="true">
       <g fill="none" stroke="var(--line)" strokeWidth="7">
         <rect x="3.5" y="3.5" width="1333" height="603" />
         <path d="M0 48 H1340 M0 562 H1340 M78 0 V610 M1262 0 V610 M470 0 V610 M870 0 V610 M0 305 H470 M870 305 H1340" />

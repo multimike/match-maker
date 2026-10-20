@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Avatar } from '../components/Avatar.tsx';
 import { CourtCard } from '../components/CourtCard.tsx';
-import type { Tag } from '../components/CourtView.tsx';
+import { COURT_ASPECT, type Tag } from '../components/CourtView.tsx';
 import { RoundCues } from '../components/RoundCues.tsx';
 import { Confetti, Shuttle } from '../components/Shuttle.tsx';
 import { go, useFitGrid, useNow, useTvHeartbeat, useWakeLock } from '../hooks.ts';
@@ -18,7 +18,7 @@ import { useStrings } from '../strings.ts';
 import { clock, remaining, timerPhase, type TimerPhase } from '../timer.ts';
 
 // A TV card is the court (13.40 × 6.10) plus a header and gap 16% of the card's width tall.
-const CARD_ASPECT = 1 / (610 / 1340 + 0.16);
+const CARD_ASPECT = 1 / (1 / COURT_ASPECT + 0.16);
 
 /** The TV view on an organiser's device, from the club's data. */
 export function OrganiserTv() {
