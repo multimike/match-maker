@@ -108,7 +108,8 @@ export interface AppState {
   history: History;
 }
 
-export const ROUND_MINUTES = [12, 15] as const;
+/** Round length in minutes: 5 suits kids' training, 12–15 a club night. */
+export const ROUND_MINUTES = { min: 5, max: 15, default: 12 } as const;
 export const DEFAULT_COURTS = 8;
 export const MAX_COURTS = 12;
 /** "How often together" choices for competition pairs. */

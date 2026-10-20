@@ -228,6 +228,7 @@ test('the round timer: pause, extra time, warning and buzzer', () => {
   expect(timerPhase(t, 1000 + 5 * 60_000)).toBe('paused');
   t = resumeTimer(t, 1000 + 5 * 60_000); // paused for 4 minutes
   expect(remaining(t, 1000 + 5 * 60_000)).toBe(11 * 60_000);
+  expect(timerPhase(t, 1000 + 15 * 60_000 - 1)).toBe('running'); // just over a minute left
   expect(timerPhase(t, 1000 + 15 * 60_000)).toBe('warning'); // 1 minute left
   expect(timerPhase(t, 1000 + 16 * 60_000)).toBe('over');
   t = addTime(t, 60_000, 1000 + 20 * 60_000); // after the buzzer: a minute from now

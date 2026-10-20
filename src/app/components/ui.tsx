@@ -50,15 +50,20 @@ interface StepperProps {
   min: number;
   max: number;
   onChange: (value: number) => void;
+  /** After the number, smaller: "min". */
+  unit?: string;
 }
 
-export function Stepper({ label, value, min, max, onChange }: StepperProps) {
+export function Stepper({ label, value, min, max, onChange, unit }: StepperProps) {
   return (
     <div className="stepper" role="group" aria-label={label}>
       <button type="button" className="stepper-button" aria-label="−1" disabled={value <= min} onClick={() => onChange(value - 1)}>
         −
       </button>
-      <output className="stepper-value" aria-live="polite">{value}</output>
+      <output className="stepper-value" aria-live="polite">
+        {value}
+        {unit && <span className="stepper-unit">{unit}</span>}
+      </output>
       <button type="button" className="stepper-button" aria-label="+1" disabled={value >= max} onClick={() => onChange(value + 1)}>
         +
       </button>

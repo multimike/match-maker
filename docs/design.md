@@ -33,7 +33,8 @@ not court time:
 
 ## The evening
 
-- **Fixed-length rounds** (12–15 min) with a "last 2 minutes" warning and a buzzer.
+- **Fixed-length rounds** (12–15 min on a club night; down to 5 min for kids' training) with a
+  "last minute" warning and a buzzer.
   Everyone changes court at the same time.
 - The organiser opens an evening. Players check in. Each round: generate, show the courts,
   play, enter results.
@@ -295,5 +296,5 @@ in step 2.
 
 ## Open questions
 
-- Round length (12 or 15 min) and evening length.
+- Evening length.
 - One rating for both singles and doubles, or separate ratings?

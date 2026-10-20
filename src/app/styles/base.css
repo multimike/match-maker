@@ -276,6 +276,14 @@ a.button {
   font-variant-numeric: tabular-nums;
 }
 
+.stepper-unit {
+  margin-left: 0.2em;
+  color: var(--ink-soft);
+  font-family: var(--font-text);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
 .field {
   display: grid;
   gap: 6px;

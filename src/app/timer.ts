@@ -3,8 +3,8 @@
 
 import type { Timer } from './model.ts';
 
-/** The "last 2 minutes" warning. */
-export const WARNING_MS = 2 * 60_000;
+/** The "last minute" warning, the same for every round length. */
+export const WARNING_MS = 60_000;
 
 export function newTimer(minutes: number): Timer {
   return { durationMs: minutes * 60_000, startedAt: null, pausedAt: null, pausedMs: 0 };

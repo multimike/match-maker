@@ -478,7 +478,7 @@ function CourtTicket({ client, me, round, index, members }: { client: PlayerClie
 
   const status = !playing
     ? t.phone.mayChange
-    : phase === 'over' ? t.rounds.buzzerRule : phase === 'warning' ? t.rounds.lastTwo : phase === 'paused' ? t.rounds.paused : '';
+    : phase === 'over' ? t.rounds.buzzerRule : phase === 'warning' ? t.rounds.lastMinute : phase === 'paused' ? t.rounds.paused : '';
 
   return (
     <section className="ticket" data-phase={phase} aria-label={t.phone.yourCourt(index + 1)}>

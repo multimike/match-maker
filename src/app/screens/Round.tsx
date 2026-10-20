@@ -220,7 +220,7 @@ function ActiveRound({ session, round }: { session: Session; round: Round }) {
 }
 
 function timerNote(t: Strings, phase: ReturnType<typeof timerPhase>): string {
-  if (phase === 'warning') return t.rounds.lastTwo;
+  if (phase === 'warning') return t.rounds.lastMinute;
   if (phase === 'over') return `${t.rounds.timeUp} ${t.rounds.buzzerRule}`;
   if (phase === 'paused') return t.rounds.paused;
   return '';

@@ -61,7 +61,7 @@ export function TvScreen({ session, members, standalone }: TvScreenProps) {
     subtitle = t.tv.nextSoon;
   } else {
     title = t.round(round.number);
-    subtitle = phase === 'ready' ? t.tv.findCourt : phase === 'warning' ? t.rounds.lastTwo : phase === 'over' ? t.rounds.buzzerRule : phase === 'paused' ? t.rounds.paused : '';
+    subtitle = phase === 'ready' ? t.tv.findCourt : phase === 'warning' ? t.rounds.lastMinute : phase === 'over' ? t.rounds.buzzerRule : phase === 'paused' ? t.rounds.paused : '';
   }
 
   return (

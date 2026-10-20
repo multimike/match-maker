@@ -39,7 +39,7 @@ function OpenForm() {
   const { sessions } = useAppState();
   const last = sessions[sessions.length - 1];
   const [courts, setCourts] = useState(last?.courts ?? DEFAULT_COURTS);
-  const [minutes, setMinutes] = useState(last?.roundMinutes ?? ROUND_MINUTES[0]);
+  const [minutes, setMinutes] = useState(last?.roundMinutes ?? ROUND_MINUTES.default);
   const [limit, setLimit] = useState(last?.softLimit ? String(last.softLimit) : '');
   const [friendly, setFriendly] = useState(false);
   const past = sessions.filter((s) => s.state === 'closed').slice(-6).reverse();
@@ -64,7 +64,7 @@ function OpenForm() {
             <Stepper label={t.open.courts} value={courts} min={1} max={MAX_COURTS} onChange={setCourts} />
           </Field>
           <Field label={t.open.roundLength}>
-            <Segmented label={t.open.roundLength} value={minutes} onChange={setMinutes} options={ROUND_MINUTES.map((m) => ({ value: m, label: t.minutes(m) }))} />
+            <Stepper label={t.open.roundLength} value={minutes} min={ROUND_MINUTES.min} max={ROUND_MINUTES.max} unit={t.min} onChange={setMinutes} />
           </Field>
           <Field label={t.open.softLimit} hint={t.open.softLimitHint} htmlFor="open-soft-limit">
             <input id="open-soft-limit" className="input input--number" type="number" inputMode="numeric" min={2} value={limit} onChange={(e) => setLimit(e.target.value)} placeholder="–" />
@@ -360,11 +360,13 @@ function EveningSettings({ session, onClose }: { session: Session; onClose: () =
         <Stepper label={t.open.courts} value={session.courts} min={1} max={MAX_COURTS} onChange={(courts) => dispatch({ type: 'session/update', courts })} />
       </SettingRow>
       <SettingRow label={t.open.roundLength}>
-        <Segmented
+        <Stepper
           label={t.open.roundLength}
           value={session.roundMinutes}
+          min={ROUND_MINUTES.min}
+          max={Math.max(ROUND_MINUTES.max, session.roundMinutes)}
+          unit={t.min}
           onChange={(roundMinutes) => dispatch({ type: 'session/update', roundMinutes })}
-          options={ROUND_MINUTES.map((m) => ({ value: m, label: t.minutes(m) }))}
         />
       </SettingRow>
       <SettingRow label={t.open.softLimit} hint={t.open.softLimitHint} htmlFor="evening-soft-limit">
