@@ -50,6 +50,7 @@ async function seed() {
     const d = db(ctx);
     await setDoc(doc(d, 'club/settings'), { owner: 'owner@club.se', organisers: ['owner@club.se', 'helper@club.se'], joinCode: CODE });
     await setDoc(doc(d, 'club/members'), { json: '[]' });
+    await setDoc(doc(d, 'club/groups'), { json: '[]' });
     await setDoc(doc(d, 'club/history'), { json: '{"met":{}}' });
     await setDoc(doc(d, 'live/current'), { json: '{"session":null}' });
     await setDoc(doc(d, 'sessions/s1'), { json: '{}', state: 'open', date: '2026-10-16' });
@@ -98,7 +99,7 @@ describe('organisers', () => {
 
   test('read and write all of the club data', async () => {
     const d = db(owner());
-    for (const path of ['club/members', 'club/history', 'live/current', 'sessions/s1', 'sessions/s2']) {
+    for (const path of ['club/members', 'club/groups', 'club/history', 'live/current', 'sessions/s1', 'sessions/s2']) {
       await assertSucceeds(setDoc(doc(d, path), { json: '{}' }));
       await assertSucceeds(getDoc(doc(d, path)));
     }
@@ -115,7 +116,7 @@ describe('organisers', () => {
 
   test('a Google account that isn’t listed gets nothing', async () => {
     const d = db(stranger());
-    for (const path of ['club/members', 'club/history', 'live/current', 'sessions/s1']) {
+    for (const path of ['club/members', 'club/groups', 'club/history', 'live/current', 'sessions/s1']) {
       await assertFails(getDoc(doc(d, path)));
       await assertFails(setDoc(doc(d, path), { json: '{}' }));
     }
@@ -134,9 +135,11 @@ describe('phones', () => {
     await assertSucceeds(join('p2', { code: CODE, joinedAt: serverTimestamp() }));
   });
 
-  test('a joined phone reads the members and tonight, nothing else', async () => {
+  test('a joined phone reads the members, the groups and tonight, nothing else', async () => {
     const d = db(phone());
     await assertSucceeds(getDoc(doc(d, 'club/members')));
+    await assertSucceeds(getDoc(doc(d, 'club/groups')));
+    await assertFails(setDoc(doc(d, 'club/groups'), { json: '[]' }));
     await assertSucceeds(getDoc(doc(d, 'live/current')));
     await assertSucceeds(getDoc(doc(d, 'players/phone1')));
     for (const path of ['club/history', 'club/settings', 'sessions/s1', 'requests/r1']) await assertFails(getDoc(doc(d, path)));
@@ -178,7 +181,9 @@ describe('requests from phones', () => {
     await assertSucceeds(send({ type: 'signup', name: 'Anna', group: 2, pref: 'doubles', consent: true }));
     await assertFails(send({ type: 'signup', name: 'Anna', group: 2, pref: 'doubles' }));
     await assertFails(send({ type: 'signup', name: 'A'.repeat(41), group: 2, pref: 'doubles', consent: true }));
-    await assertFails(send({ type: 'signup', name: 'Anna', group: 3, pref: 'doubles', consent: true }));
+    await assertSucceeds(send({ type: 'signup', name: 'Anna', group: 3, pref: 'doubles', consent: true }));
+    await assertFails(send({ type: 'signup', name: 'Anna', group: 0, pref: 'doubles', consent: true }));
+    await assertFails(send({ type: 'signup', name: 'Anna', group: '1', pref: 'doubles', consent: true }));
     await assertSucceeds(send({ type: 'profile', pref: 'singles', consent: true }));
     await assertFails(send({ type: 'profile', consent: false }));
   });

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { seededRandom } from '../src/engine/random.ts';
 import { RATING } from '../src/engine/rating.ts';
-import { changedDocs, fromDocs, HISTORY, LIVE, MEMBERS, sessionPath, toDocs } from '../src/app/cloud/docs.ts';
+import { changedDocs, fromDocs, GROUPS, HISTORY, LIVE, MEMBERS, sessionPath, toDocs } from '../src/app/cloud/docs.ts';
 import { liveView } from '../src/app/live.ts';
 import { emptyState, latestRound, openSession, type AppState } from '../src/app/model.ts';
 import { requestActions, type PlayerRequest } from '../src/app/requests.ts';
@@ -54,6 +54,10 @@ test('signing up on a phone adds a new member with consent, once', () => {
   // The organiser's own form can't add a second member with the same id either.
   o.do({ type: 'member/add', id: 'phone1', member: { name: 'Other', group: 1, pref: 'either', partnerId: null, partnerShare: 0.5 } });
   expect(o.state.members).toHaveLength(1);
+
+  // A group the phone saw that has been removed since: the club's first group instead.
+  o.phone({ type: 'signup', memberId: 'phone2', name: 'Tor', group: 7, pref: 'either', consent: true });
+  expect(o.state.members[1]).toMatchObject({ group: 1, rating: RATING.start[1] });
 });
 
 test('an existing member on a new phone sets their preference and gives consent', () => {
@@ -153,6 +157,14 @@ test('the club fits in documents and comes back exactly, writing only what chang
   const json = new Map([...docs].filter(([path]) => path !== LIVE).map(([path, d]) => [path, d.json]));
   expect(fromDocs(json)).toEqual(o.state);
   expect(fromDocs(new Map())).toEqual(emptyState());
+  // A club from before training groups has no groups document: it gets the two it started with.
+  json.delete(GROUPS);
+  expect(fromDocs(json).groups).toEqual(emptyState().groups);
+
+  // Adding a group writes only the groups document.
+  const beforeGroup = toDocs(o.state);
+  o.do({ type: 'group/add', group: { name: 'Barn', start: 1100, hideRating: true } });
+  expect(changedDocs(beforeGroup, toDocs(o.state)).map((c) => c.path)).toEqual([GROUPS]);
   // Courts are arrays inside arrays, which Firestore can't store as fields: they travel as JSON.
   expect(Object.values(docs.get(sessionPath(o.state.sessions[0].id))!)).toEqual([expect.any(String), 'closed', expect.any(String)]);
 
@@ -165,5 +177,5 @@ test('the club fits in documents and comes back exactly, writing only what chang
   // Starting over deletes the evenings' documents and empties the rest.
   const wiped = changedDocs(toDocs(o.state), toDocs(emptyState()));
   expect(wiped.filter((c) => c.data === null).map((c) => c.path).sort()).toEqual(o.state.sessions.map((s) => sessionPath(s.id)).sort());
-  expect(wiped.map((c) => c.path)).toEqual(expect.arrayContaining([MEMBERS, HISTORY, LIVE]));
+  expect(wiped.map((c) => c.path)).toEqual(expect.arrayContaining([MEMBERS, GROUPS, HISTORY, LIVE]));
 });

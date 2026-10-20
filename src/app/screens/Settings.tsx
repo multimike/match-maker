@@ -1,13 +1,14 @@
 // Settings. With the cloud set up: the links for players' phones and the TV, and who the
-// organisers are. Always: this device's language and sound, the backup, and, last, the things
-// that can't be undone.
+// organisers are. Always: the training groups, this device's language and sound, the backup,
+// and, last, the things that can't be undone.
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { joinLink, tvLink, useCloud, type CloudInfo } from '../cloud/context.ts';
 import { QrCode } from '../components/QrCode.tsx';
-import { CopyButton, Dialog, Section, Segmented, SettingRow, useConfirm } from '../components/ui.tsx';
+import { CopyButton, Dialog, Field, Section, Segmented, SettingRow, Stepper, useConfirm } from '../components/ui.tsx';
+import { groupName } from '../format.ts';
 import { routeHref } from '../hooks.ts';
-import { emptyState } from '../model.ts';
+import { GROUP_START, emptyState, type TrainingGroup } from '../model.ts';
 import { setPrefs, usePrefs, type Lang } from '../prefs.ts';
 import { play, unlockAudio } from '../sound.ts';
 import { backupFileName, parseState } from '../storage.ts';
@@ -30,6 +31,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
     >
       {cloud && <InTheHall cloud={cloud} onClose={onClose} />}
       {cloud && <Organisers cloud={cloud} />}
+      <Groups />
       <ThisDevice cloud={cloud} />
       <Backup />
       <CantBeUndone cloud={cloud} onClose={onClose} />
@@ -115,6 +117,131 @@ function Organisers({ cloud }: { cloud: CloudInfo }) {
         </button>
       </form>
     </Section>
+  );
+}
+
+function Groups() {
+  const t = useStrings();
+  const { groups, members } = useAppState();
+  const [editing, setEditing] = useState<TrainingGroup | 'new' | null>(null);
+  return (
+    <Section title={t.groups.title} hint={t.groups.hint}>
+      <ul className="list">
+        {groups.map((g) => (
+          <li key={g.id} className="list-row">
+            <span className="list-main">{groupName(t, g)}</span>
+            <span className="chip chip--small">{t.groups.startChip(g.start)}</span>
+            {g.hideRating && <span className="chip chip--small">{t.groups.hidden}</span>}
+            <span className="setting-hint">{t.groups.players(members.filter((m) => m.group === g.id).length)}</span>
+            <button type="button" className="button button--quiet button--small list-end" onClick={() => setEditing(g)}>
+              {t.groups.edit}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="button-row">
+        <button type="button" className="button button--quiet" onClick={() => setEditing('new')}>
+          {t.groups.add}
+        </button>
+      </div>
+      {editing && <GroupForm group={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
+    </Section>
+  );
+}
+
+/** Adding or changing a training group; deleting one moves its players to another group. */
+function GroupForm({ group, onClose }: { group?: TrainingGroup; onClose: () => void }) {
+  const t = useStrings();
+  const dispatch = useDispatch();
+  const confirm = useConfirm();
+  const { groups, members } = useAppState();
+  const [name, setName] = useState(group?.name ?? '');
+  const [start, setStart] = useState(group?.start ?? 1400);
+  const [hideRating, setHideRating] = useState(group?.hideRating ?? false);
+  const others = groups.filter((g) => g.id !== group?.id);
+  const [moveTo, setMoveTo] = useState(others[0]?.id ?? 0);
+  const players = group ? members.filter((m) => m.group === group.id).length : 0;
+  const formId = useId();
+  // The two groups every club starts with have a name in each language until someone gives them one.
+  const placeholder = group && !group.name ? t.members.groupN(group.id) : t.groups.namePlaceholder;
+  const nameNeeded = !group || group.name !== '';
+  const ready = !nameNeeded || name.trim() !== '';
+
+  const submit = () => {
+    if (!ready) return;
+    const input = { name, start, hideRating };
+    dispatch(group ? { type: 'group/update', id: group.id, group: input } : { type: 'group/add', group: input });
+    onClose();
+  };
+
+  const remove = async () => {
+    if (!group || others.length === 0) return;
+    const to = groupName(t, others.find((g) => g.id === moveTo));
+    if (await confirm({ ...t.groups.deleteConfirm(groupName(t, group), players, to), ok: t.groups.delete })) {
+      dispatch({ type: 'group/delete', id: group.id, moveTo });
+      onClose();
+    }
+  };
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title={group ? t.groups.editTitle : t.groups.newTitle}
+      footer={
+        <>
+          <button type="button" className="button button--quiet" onClick={onClose}>
+            {t.cancel}
+          </button>
+          <button type="submit" form={formId} className="button button--primary" disabled={!ready}>
+            {group ? t.save : t.form.add}
+          </button>
+        </>
+      }
+    >
+      <form
+        id={formId}
+        className="form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
+        <Field label={t.groups.name} htmlFor={`${formId}-name`}>
+          <input id={`${formId}-name`} className="input" value={name} placeholder={placeholder} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="off" required={nameNeeded} data-autofocus={group ? undefined : true} />
+        </Field>
+        <Field label={t.groups.start} hint={t.groups.startHint}>
+          <Stepper label={t.groups.start} value={start} min={GROUP_START.min} max={GROUP_START.max} step={GROUP_START.step} onChange={setStart} />
+        </Field>
+        <div className="field">
+          <label className="toggle">
+            <input type="checkbox" checked={hideRating} onChange={(e) => setHideRating(e.target.checked)} />
+            <span>{t.groups.hide}</span>
+          </label>
+          <span className="field-hint">{t.groups.hideHint}</span>
+        </div>
+      </form>
+      {group && others.length > 0 && (
+        <Section title={t.settings.danger} danger>
+          {players > 0 && (
+            <Field label={t.groups.moveTo} htmlFor={`${formId}-move`}>
+              <select id={`${formId}-move`} className="input" value={moveTo} onChange={(e) => setMoveTo(Number(e.target.value))}>
+                {others.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {groupName(t, g)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
+          <SettingRow label={t.groups.delete} hint={t.groups.deleteHint(players)}>
+            <button type="button" className="button button--danger-quiet" onClick={() => void remove()}>
+              {t.settings.deleteButton}
+            </button>
+          </SettingRow>
+        </Section>
+      )}
+    </Dialog>
   );
 }
 

@@ -1,14 +1,14 @@
 // A player's phone: signs in anonymously, joins the club with the code from the QR poster, and
-// follows the members and tonight's live view. What the player does goes to the organiser's
+// follows the members, the training groups and tonight's live view. What the player does goes to the organiser's
 // device as a request (requests.ts).
 
 import { signInAnonymously } from 'firebase/auth';
 import { addDoc, collection, deleteField, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc, type Unsubscribe } from 'firebase/firestore';
 import type { LiveView } from '../live.ts';
-import type { Member } from '../model.ts';
+import { DEFAULT_GROUPS, type Member, type TrainingGroup } from '../model.ts';
 import type { PlayerRequest } from '../requests.ts';
 import { PLAYERS } from './club.ts';
-import { LIVE, MEMBERS, parseLive, type DocData } from './docs.ts';
+import { GROUPS, LIVE, MEMBERS, parseLive, type DocData } from './docs.ts';
 import type { Cloud } from './firebase.ts';
 import { REQUESTS } from './store.ts';
 
@@ -26,6 +26,7 @@ export interface PlayerState {
   /** The member this phone says it is. */
   memberId?: string;
   members: Member[];
+  groups: TrainingGroup[];
   live: LiveView;
   /** Members and the live view have arrived. */
   loaded: boolean;
@@ -43,7 +44,7 @@ export interface PlayerClient {
 const CODE_KEY = 'matchmaker.joinCode';
 
 export function createPlayerClient({ auth, db }: Cloud, code: string | null): PlayerClient {
-  let state: PlayerState = { phase: 'starting', badCode: false, members: [], live: { session: null }, loaded: false };
+  let state: PlayerState = { phase: 'starting', badCode: false, members: [], groups: DEFAULT_GROUPS, live: { session: null }, loaded: false };
   const listeners = new Set<() => void>();
   const set = (change: Partial<PlayerState>) => {
     state = { ...state, ...change };
@@ -69,6 +70,11 @@ export function createPlayerClient({ auth, db }: Cloud, code: string | null): Pl
         members = true;
         set({ members: data ? (JSON.parse(data.json) as Member[]) : [] });
         loaded();
+      }, () => {}),
+      // A club from before training groups has no groups document: the two it started with.
+      onSnapshot(doc(db, GROUPS), (snap) => {
+        const data = snap.data() as DocData | undefined;
+        set({ groups: data ? (JSON.parse(data.json) as TrainingGroup[]) : DEFAULT_GROUPS });
       }, () => {}),
       onSnapshot(doc(db, LIVE), (snap) => {
         live = true;

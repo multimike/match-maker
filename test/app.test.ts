@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { seededRandom } from '../src/engine/random.ts';
 import { RATING, rateRound } from '../src/engine/rating.ts';
-import { capacity, emptyState, latestRound, openSession, type AppState } from '../src/app/model.ts';
+import { capacity, emptyState, hidesRating, latestRound, openSession, ranking, type AppState } from '../src/app/model.ts';
 import { isUpset, pickWinner, resultFromScore, winnerFromScore } from '../src/app/results.ts';
 import { reduce, type Action, type MemberInput } from '../src/app/state.ts';
 import { addTime, finishTimer, newTimer, pauseTimer, remaining, resumeTimer, startTimer, timerPhase } from '../src/app/timer.ts';
@@ -27,7 +27,7 @@ function organiser(start = new Date(2026, 9, 15, 18, 0).getTime()) {
   };
 }
 
-const member = (name: string, group: 1 | 2, extra: Partial<MemberInput> = {}): Action => ({
+const member = (name: string, group: number, extra: Partial<MemberInput> = {}): Action => ({
   type: 'member/add',
   member: { name, group, pref: 'either', partnerId: null, partnerShare: 0.5, ...extra },
 });
@@ -275,4 +275,44 @@ test('a friendly evening left open makes way for the next day; a club night does
   o.wait(day);
   o.do({ type: 'session/open', courts: 2, roundMinutes: 15, friendly: true });
   expect(session(o.state).id).toBe(clubNight); // still open: the organiser decides
+});
+
+test('training groups: starting ratings, hidden ratings, moving players and deleting a group', () => {
+  const o = organiser();
+  o.do({ type: 'group/add', group: { name: ' Barn ', start: 1100, hideRating: true } });
+  o.do({ type: 'group/add', group: { name: '  ', start: 1000 } }); // a new group needs a name
+  expect(o.state.groups.map((g) => g.id)).toEqual([1, 2, 3]);
+  expect(o.state.groups[2]).toEqual({ id: 3, name: 'Barn', start: 1100, hideRating: true });
+
+  o.do(member('Ada', 1), member('Kim', 3), member('Lo', 3));
+  const get = (name: string) => o.state.members.find((m) => m.name === name)!;
+  expect(get('Kim').rating).toBe(1100);
+  // Players in a group with hidden ratings aren't in the ranking.
+  expect(hidesRating(o.state.groups, get('Kim'))).toBe(true);
+  expect(ranking(o.state.members, o.state.groups).map((m) => m.name)).toEqual(['Ada']);
+
+  // A new starting rating applies to the group's players who haven't played yet; it stays in range.
+  o.do({ type: 'group/update', id: 3, group: { name: 'Barn', start: 1200, hideRating: true } });
+  expect([get('Kim').rating, get('Ada').rating]).toEqual([1200, RATING.start[1]]);
+  o.do({ type: 'group/update', id: 3, group: { name: 'Barn', start: 5000 } });
+  expect(o.state.groups[2]).toEqual({ id: 3, name: 'Barn', start: 2200 });
+  o.do({ type: 'group/update', id: 3, group: { name: '', start: 1200, hideRating: true } }); // can't lose its name
+  o.do({ type: 'group/update', id: 1, group: { name: '', start: 1650 } }); // the starting groups can stay unnamed
+  expect(o.state.groups.map((g) => [g.name, g.start])).toEqual([['', 1650], ['', RATING.start[2]], ['Barn', 2200]]);
+  o.do({ type: 'group/update', id: 3, group: { name: 'Barn', start: 1200, hideRating: true } });
+
+  // Moving a player: a rating that has moved with results goes with them; one that hasn't starts over.
+  const played = o.state.members.map((m) => (m.name === 'Kim' ? { ...m, matches: 4, rating: 1290 } : m));
+  o.do({ type: 'state/replace', state: { ...o.state, members: played } });
+  const moveTo = (name: string, group: number) => ({ type: 'member/update' as const, id: get(name).id, member: { name, group, pref: 'either' as const, partnerId: null, partnerShare: 0.5 } });
+  o.do(moveTo('Kim', 2), moveTo('Lo', 2));
+  expect([get('Kim').rating, get('Lo').rating]).toEqual([1290, RATING.start[2]]);
+  o.do(moveTo('Kim', 3), moveTo('Lo', 3));
+
+  // Deleting a group moves its players to the chosen group first.
+  o.do({ type: 'group/delete', id: 3, moveTo: 3 }, { type: 'group/delete', id: 3, moveTo: 9 });
+  expect(o.state.groups).toHaveLength(3);
+  o.do({ type: 'group/delete', id: 3, moveTo: 2 });
+  expect(o.state.groups.map((g) => g.id)).toEqual([1, 2]);
+  expect([get('Kim').group, get('Kim').rating, get('Lo').group, get('Lo').rating]).toEqual([2, 1290, 2, RATING.start[2]]);
 });

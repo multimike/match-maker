@@ -4,14 +4,33 @@
 // tests can run a whole evening through state.ts.
 
 import type { Court, Energy, Evening, History, Player, Pref } from '../engine/engine.ts';
-import type { Rated, Winner } from '../engine/rating.ts';
+import { RATING, type Rated, type Winner } from '../engine/rating.ts';
 
-export type Group = 1 | 2;
+/** A training group's id. Groups 1 and 2 are the ones every club starts with. */
+export type Group = number;
+
+/** A training group: where a new player's rating starts, and whether its players see ratings. */
+export interface TrainingGroup {
+  id: Group;
+  /** Empty for the two groups every club starts with: "Group 1" and "Group 2" in each language. */
+  name: string;
+  /** Starting rating for players who join the group. */
+  start: number;
+  /** Kids' groups: players see no rating, rank or rating change. Organisers still do. */
+  hideRating?: boolean;
+}
+
+export const DEFAULT_GROUPS: TrainingGroup[] = [
+  { id: 1, name: '', start: RATING.start[1] },
+  { id: 2, name: '', start: RATING.start[2] },
+];
+/** Starting ratings an organiser can choose for a group. */
+export const GROUP_START = { min: 800, max: 2200, step: 50 } as const;
 
 export interface Member {
   id: string;
   name: string;
-  /** "Which group do you usually play in?" Sets the starting rating. */
+  /** The training group: sets the starting rating, and whether the player sees ratings. */
   group: Group;
   rating: number;
   /** Rated matches; the rating is provisional while they're few. */
@@ -103,6 +122,8 @@ export interface Session {
 export interface AppState {
   version: 1;
   members: Member[];
+  /** Training groups, in the order they're shown. */
+  groups: TrainingGroup[];
   sessions: Session[];
   /** When each pair last met, across evenings (engine). */
   history: History;
@@ -120,7 +141,22 @@ export const MAX_SCORE = 30;
 export const MAX_NAME = 40;
 
 export function emptyState(): AppState {
-  return { version: 1, members: [], sessions: [], history: { met: {} } };
+  return { version: 1, members: [], groups: DEFAULT_GROUPS, sessions: [], history: { met: {} } };
+}
+
+/** Where a player in the group starts. An unknown group starts in the middle. */
+export function groupStart(groups: TrainingGroup[], id: Group): number {
+  return groups.find((g) => g.id === id)?.start ?? RATING.fallback;
+}
+
+/** Players in a group with hidden ratings see no numbers, and aren't in the ranking. */
+export function hidesRating(groups: TrainingGroup[], member: Pick<Member, 'group'>): boolean {
+  return groups.find((g) => g.id === member.group)?.hideRating === true;
+}
+
+/** The ranking players see: highest rating first, without players whose ratings are hidden. */
+export function ranking(members: Member[], groups: TrainingGroup[]): Member[] {
+  return members.filter((m) => !hidesRating(groups, m)).sort((a, b) => b.rating - a.rating);
 }
 
 /** YYYY-MM-DD in local time. */

@@ -48,11 +48,18 @@ not court time:
 
 ## Levels and rating
 
-- One shared scale for both groups, **visible to everyone**. The club already knows who is
-  stronger, so this isn't sensitive.
-- **No manual pre-ranking.** At sign-up players answer "which group do you usually play
-  in?", and that sets the starting rating (group 1 higher). The organiser can nudge obvious
-  outliers, but doesn't have to.
+- One shared scale for every training group, **visible to everyone** in the competitive
+  groups. The club already knows who is stronger, so this isn't sensitive.
+- **Training groups** (Settings): each has a name and a starting rating, and can **hide
+  ratings from its players**, for kids. Those players see no rating, rank or change on their
+  phone and are left out of the ranking; organisers still see their ratings, and their
+  results still move them, so their matches stay even. One scale for everyone means club-wide
+  match sessions, with players from every group, work without anything special: games across
+  groups are what keep the scale the same for all of them.
+- **No manual pre-ranking.** At sign-up players choose their training group, and that sets
+  the starting rating (group 1 higher). The organiser can nudge obvious outliers, but doesn't
+  have to. Moving a player to another group keeps a rating that has moved with results; one
+  that hasn't starts again from the new group's starting point.
 - **Results move ratings**, Elo-style: upsets count more than expected wins. In doubles a
   team's strength is the average of the two partners, and both partners move.
 - **Provisional players:** large adjustments for the first ~10 matches, and the rating is
@@ -188,7 +195,8 @@ Stylish and inviting, slightly playful, and unmistakably badminton:
 
 ### Data model (sketch)
 
-- **members:** name, rating, matches played (provisional until ~10), seed group,
+- **groups:** name, starting rating, hide ratings from players.
+- **members:** name, rating, matches played (provisional until ~10), training group,
   singles/doubles preference, fixed partner and how often, status (new / confirmed),
   consent date.
 - **sessions:** date, courts, round length, soft limit, `cap` (empty for now), state.
@@ -254,7 +262,7 @@ in step 2.
   (`src/app/requests.ts`). Handling a request twice does no harm. Requests only go through
   while an organiser's app is open, which it is during the evening.
 - **Documents:** `club/settings` (organisers and the join code, organisers only),
-  `club/members`, `club/history`, `sessions/{id}` (one per evening, organisers only),
+  `club/members`, `club/groups` (phones read both), `club/history`, `sessions/{id}` (one per evening, organisers only),
   `live/current` (what phones see of tonight), `players/{uid}` (a phone that has joined and
   who it says it is) and `requests/{id}`. Each holds its content as one JSON string, since
   Firestore can't store arrays inside arrays (a court's two sides).

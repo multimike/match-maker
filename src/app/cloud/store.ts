@@ -11,7 +11,7 @@ import type { AppState } from '../model.ts';
 import { requestActions, type PlayerRequest } from '../requests.ts';
 import { reduce } from '../state.ts';
 import { browserEnv, type Store } from '../store.ts';
-import { HISTORY, MEMBERS, SESSIONS, changedDocs, fromDocs, toDocs, type DocData } from './docs.ts';
+import { GROUPS, HISTORY, MEMBERS, SESSIONS, changedDocs, fromDocs, toDocs, type DocData } from './docs.ts';
 
 export const REQUESTS = 'requests';
 
@@ -60,7 +60,7 @@ export function createCloudStore(db: Firestore, { handleRequests }: { handleRequ
     return true;
   };
 
-  let waiting = 3;
+  let waiting = 4;
   let markReady = () => {};
   const ready = new Promise<void>((resolve) => (markReady = resolve));
   const firstTime = () => {
@@ -74,7 +74,7 @@ export function createCloudStore(db: Firestore, { handleRequests }: { handleRequ
 
   // A listener that fails (signed out, no longer an organiser) still counts as loaded, so the
   // screens come up and show the error instead of waiting forever.
-  for (const path of [MEMBERS, HISTORY]) {
+  for (const path of [MEMBERS, GROUPS, HISTORY]) {
     const loaded = firstTime();
     unsubscribes.push(onSnapshot(doc(db, path), (snap) => {
       if (take(path, snap.data() as DocData | undefined, snap.metadata.hasPendingWrites)) reload();

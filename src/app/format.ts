@@ -1,6 +1,6 @@
 // Turning data into text for the screens.
 
-import type { Capacity } from './model.ts';
+import type { Capacity, TrainingGroup } from './model.ts';
 import type { Strings } from './strings.ts';
 
 export function formatDate(t: Strings, date: string, withWeekday = true): string {
@@ -32,4 +32,10 @@ export function signed(n: number): string {
 export function joinNames(names: string[], and: string): string {
   if (names.length <= 1) return names.join('');
   return `${names.slice(0, -1).join(', ')} ${and} ${names[names.length - 1]}`;
+}
+
+/** A group's name; the two groups every club starts with are named in the app's language. */
+export function groupName(t: Strings, group: TrainingGroup | undefined): string {
+  if (!group) return '';
+  return group.name || t.members.groupN(group.id);
 }

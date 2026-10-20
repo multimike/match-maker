@@ -419,6 +419,27 @@
   white-space: nowrap;
 }
 
+.tile-text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+/* The training group under the name, so it's easy to tell the groups apart. */
+.tile-group {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile[data-status='here'] .tile-group {
+  color: color-mix(in srgb, var(--line) 78%, transparent);
+}
+
 .tile-badges {
   display: flex;
   gap: 2px;
@@ -748,6 +769,17 @@
 
 .ranking li:nth-child(-n + 3) .rank-pos {
   color: var(--court);
+}
+
+/* Players whose ratings are hidden from them: after the ranking, without places. */
+.ranking-hidden {
+  display: grid;
+  gap: 8px;
+  margin-top: 32px;
+}
+
+.ranking-hidden .field-hint {
+  margin-bottom: 4px;
 }
 
 .rank-name {

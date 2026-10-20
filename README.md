@@ -42,9 +42,10 @@ players; start fresh afterwards with Settings → Delete all data.
 
 ## A match night
 
-1. **Members:** add players with their usual group (sets the starting rating), singles or
-   doubles preference, and any competition partner.
-2. **Tonight:** open the evening (courts, 12 or 15 minute rounds) and tap names to check
+1. **Members:** add players with their training group (sets the starting rating; Settings
+   has the groups, and a kids' group can hide ratings from its players), singles or doubles
+   preference, and any competition partner.
+2. **Tonight:** open the evening (courts, rounds of 5–15 minutes) and tap names to check
    players in. Tap a checked-in player for their energy for the night, "skip next round" or
    checking out.
 3. **Round:** make the round, start it, and tap the winning side on each court as games end

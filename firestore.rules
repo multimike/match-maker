@@ -74,6 +74,11 @@ service cloud.firestore {
       allow write: if organiser();
     }
 
+    match /club/groups {
+      allow read: if organiser() || player();
+      allow write: if organiser();
+    }
+
     match /club/history {
       allow read, write: if organiser();
     }
@@ -135,7 +140,7 @@ service cloud.firestore {
     function signupRequest(r) {
       return r.type == 'signup' && r.keys().hasOnly(baseKeys().concat(['name', 'group', 'pref', 'consent']))
         && r.name is string && r.name.size() >= 1 && r.name.size() <= 40
-        && r.group in [1, 2] && pref(r.pref) && r.consent == true;
+        && r.group is int && r.group >= 1 && r.group <= 99 && pref(r.pref) && r.consent == true;
     }
 
     function profileRequest(r) {

@@ -10,6 +10,7 @@ import { ROLE_KEY } from '../cloud/context.ts';
 import type { Cloud } from '../cloud/firebase.ts';
 import { createPlayerClient, type PlayerClient, type PlayerState } from '../cloud/player.ts';
 import { Avatar } from '../components/Avatar.tsx';
+import { GroupChoice } from '../components/GroupChoice.tsx';
 import { ScoreEntry } from '../components/CourtCard.tsx';
 import { CourtView, type Tag } from '../components/CourtView.tsx';
 import { PrefIcon } from '../components/PrefIcon.tsx';
@@ -18,7 +19,7 @@ import { Field, Segmented, useConfirm } from '../components/ui.tsx';
 import { formatDate, signed } from '../format.ts';
 import { joinCodeOf, useNow } from '../hooks.ts';
 import type { LiveCheckIn, LiveRound, LiveSession } from '../live.ts';
-import { MAX_NAME, type CourtResult, type Group, type Member } from '../model.ts';
+import { MAX_NAME, hidesRating, ranking, type CourtResult, type Group, type Member, type TrainingGroup } from '../model.ts';
 import { setPrefs, usePrefs, type Lang } from '../prefs.ts';
 import { pickWinner, winnerFromScore } from '../results.ts';
 import { newId } from '../store.ts';
@@ -146,7 +147,7 @@ function WhoAreYou({ client, members }: { client: PlayerClient; members: Member[
   const t = useStrings();
   const [query, setQuery] = useState('');
   const [step, setStep] = useState<Member | 'new' | null>(null);
-  if (step === 'new') return <NewPlayer client={client} name={query.trim()} onBack={() => setStep(null)} />;
+  if (step === 'new') return <NewPlayer client={client} groups={client.getState().groups} name={query.trim()} onBack={() => setStep(null)} />;
   if (step) return <ThatsMe client={client} member={step} onBack={() => setStep(null)} />;
 
   const q = query.trim().toLowerCase();
@@ -246,7 +247,7 @@ function ThatsMe({ client, member, onBack }: { client: PlayerClient; member: Mem
   );
 }
 
-function NewPlayer({ client, name: initialName, onBack }: { client: PlayerClient; name: string; onBack: () => void }) {
+function NewPlayer({ client, groups, name: initialName, onBack }: { client: PlayerClient; groups: TrainingGroup[]; name: string; onBack: () => void }) {
   const t = useStrings();
   const [name, setName] = useState(initialName);
   const [group, setGroup] = useState<Group | 0>(0);
@@ -280,13 +281,8 @@ function NewPlayer({ client, name: initialName, onBack }: { client: PlayerClient
       <Field label={t.form.name} hint={t.phone.nameHint} htmlFor="new-player-name">
         <input id="new-player-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME} autoComplete="given-name" required />
       </Field>
-      <Field label={t.form.group} hint={t.phone.groupHint}>
-        <Segmented<Group | 0>
-          label={t.form.group}
-          value={group}
-          onChange={setGroup}
-          options={[1, 2].map((g) => ({ value: g as Group, label: t.members.groupN(g) }))}
-        />
+      <Field label={t.form.group} hint={t.phone.groupHint} htmlFor={groups.length > 3 ? 'new-player-group' : undefined}>
+        <GroupChoice id="new-player-group" label={t.form.group} groups={groups} value={group} onChange={setGroup} />
       </Field>
       <PrefChoice value={pref} onChange={setPref} />
       <Consent checked={consent} onChange={setConsent} />
@@ -332,15 +328,16 @@ function Home({ client, me, state }: { client: PlayerClient; me: Member; state: 
   const t = useStrings();
   const session = state.live.session;
   const checkIn = session?.checkIns[me.id];
+  const hideRating = hidesRating(state.groups, me);
   return (
     <>
-      <MeCard client={client} me={me} members={state.members} checkIn={checkIn} />
+      <MeCard client={client} me={me} ranked={hideRating ? null : ranking(state.members, state.groups)} checkIn={checkIn} />
       {!session ? (
         <NoEvening />
       ) : checkIn?.here ? (
         <>
           {session.friendly && <p className="phone-friendly phone-friendly--light">{t.phone.friendly}</p>}
-          <RoundView client={client} me={me} round={session.round} members={state.members} />
+          <RoundView client={client} me={me} round={session.round} members={state.members} hideRating={hideRating} />
           <TonightCard client={client} me={me} checkIn={checkIn} />
         </>
       ) : (
@@ -350,21 +347,24 @@ function Home({ client, me, state }: { client: PlayerClient; me: Member; state: 
   );
 }
 
-function MeCard({ client, me, members, checkIn }: { client: PlayerClient; me: Member; members: Member[]; checkIn?: LiveCheckIn }) {
+/** Who the phone is, with their rating and place in the ranking: `ranked` is null when the player's ratings are hidden. */
+function MeCard({ client, me, ranked, checkIn }: { client: PlayerClient; me: Member; ranked: Member[] | null; checkIn?: LiveCheckIn }) {
   const t = useStrings();
-  const rank = [...members].sort((a, b) => b.rating - a.rating).findIndex((m) => m.id === me.id) + 1;
+  const rank = ranked ? ranked.findIndex((m) => m.id === me.id) + 1 : 0;
   const tonight = checkIn ? me.rating - checkIn.startRating : 0;
   return (
     <header className="me">
       <Avatar id={me.id} name={me.name} className="avatar--big" />
       <div className="me-text">
         <p className="me-name">{me.name}</p>
-        <p className="me-line">
-          <span className="me-rating">{Math.round(me.rating)}</span>
-          {isProvisional(me) && <span className="prov-tag">{t.members.provisional}</span>}
-          <span>{t.phone.rank(rank, members.length)}</span>
-          {Math.abs(tonight) >= 0.5 && <span className={`me-delta ${tonight > 0 ? 'is-up' : 'is-down'}`}>{t.phone.tonightChange(signed(tonight))}</span>}
-        </p>
+        {ranked && (
+          <p className="me-line">
+            <span className="me-rating">{Math.round(me.rating)}</span>
+            {isProvisional(me) && <span className="prov-tag">{t.members.provisional}</span>}
+            {rank > 0 && <span>{t.phone.rank(rank, ranked.length)}</span>}
+            {Math.abs(tonight) >= 0.5 && <span className={`me-delta ${tonight > 0 ? 'is-up' : 'is-down'}`}>{t.phone.tonightChange(signed(tonight))}</span>}
+          </p>
+        )}
         {me.status === 'new' && <p className="me-new">{t.phone.isNew}</p>}
       </div>
       <button type="button" className="me-switch" onClick={() => void client.setMember(null)}>
@@ -432,11 +432,11 @@ function CheckIn({ client, me, session, left }: { client: PlayerClient; me: Memb
   );
 }
 
-function RoundView({ client, me, round, members }: { client: PlayerClient; me: Member; round?: LiveRound; members: Member[] }) {
+function RoundView({ client, me, round, members, hideRating }: { client: PlayerClient; me: Member; round?: LiveRound; members: Member[]; hideRating: boolean }) {
   const t = useStrings();
   if (!round) return <Hero title={t.phone.checkedIn} lead={t.phone.firstSoon} />;
   const index = round.courts.findIndex((c) => c.sides.flat().includes(me.id));
-  if (round.status === 'done') return <RoundDone round={round} me={me} index={index} />;
+  if (round.status === 'done') return <RoundDone round={round} me={me} index={index} hideRating={hideRating} />;
   if (index < 0) {
     const resting = round.resting.includes(me.id);
     return <Hero icon={resting ? REST_EMOJI : undefined} title={resting ? t.phone.resting : t.phone.nextRound} lead={resting ? t.phone.restingHint : t.round(round.number + 1)} />;
@@ -517,7 +517,7 @@ function CourtTicket({ client, me, round, index, members }: { client: PlayerClie
   );
 }
 
-function RoundDone({ round, me, index }: { round: LiveRound; me: Member; index: number }) {
+function RoundDone({ round, me, index, hideRating }: { round: LiveRound; me: Member; index: number; hideRating: boolean }) {
   const t = useStrings();
   const court = round.courts[index];
   if (!court) return <Hero icon={REST_EMOJI} title={t.rounds.roundDone(round.number)} lead={t.phone.nextSoon} />;
@@ -529,7 +529,7 @@ function RoundDone({ round, me, index }: { round: LiveRound; me: Member; index: 
       {won && <Confetti key={round.id} />}
       <Shuttle size={72} className="phone-hero-shuttle" />
       <h1 className="phone-title phone-title--big">{winner === null ? t.phone.noResult : won ? t.phone.won : t.phone.lost}</h1>
-      {change !== undefined && Math.abs(change) >= 0.5 && (
+      {!hideRating && change !== undefined && Math.abs(change) >= 0.5 && (
         <p className={`phone-change ${change > 0 ? 'is-up' : 'is-down'}`}>{t.phone.ratingChange(signed(change))}</p>
       )}
       <p className="phone-lead">

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import type { Energy } from '../../engine/engine.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { Dialog, Field, Segmented, SettingRow, Stepper, useConfirm } from '../components/ui.tsx';
-import { capacityLines, formatDate } from '../format.ts';
+import { capacityLines, formatDate, groupName } from '../format.ts';
 import { go, useNow } from '../hooks.ts';
 import {
   DEFAULT_COURTS,
@@ -131,6 +131,7 @@ function OpenEvening({ session }: { session: Session }) {
   };
 
   const sheetMember = sheet ? state.members.find((m) => m.id === sheet) : undefined;
+  const groups = new Map(state.groups.map((g) => [g.id, g]));
 
   return (
     <div className="page">
@@ -185,7 +186,10 @@ function OpenEvening({ session }: { session: Session }) {
                 <li key={m.id}>
                   <button type="button" className="tile" data-status={status} aria-label={`${m.name}, ${t.tonight.status[status]}`} onClick={() => tap(m)}>
                     <Avatar id={m.id} name={m.name} />
-                    <span className="tile-name">{m.name}</span>
+                    <span className="tile-text">
+                      <span className="tile-name">{m.name}</span>
+                      <span className="tile-group">{groupName(t, groups.get(m.group))}</span>
+                    </span>
                     <span className="tile-badges">
                       {status === 'left' && <span className="tile-left">{t.tonight.left}</span>}
                       {isHere(c) && c.energy !== 'normal' && <span title={t.energy[c.energy]}>{ENERGY_EMOJI[c.energy]}</span>}
@@ -281,6 +285,7 @@ function RoundStatus({ session, canPlan }: { session: Session; canPlan: boolean 
 }
 
 function PlayerSheet({ member, session, onClose, onEdit }: { member: Member; session: Session; onClose: () => void; onEdit: () => void }) {
+  const { groups } = useAppState();
   const t = useStrings();
   const dispatch = useDispatch();
   const c = session.checkIns[member.id];
@@ -291,6 +296,7 @@ function PlayerSheet({ member, session, onClose, onEdit }: { member: Member; ses
       open
       onClose={onClose}
       title={member.name}
+      lead={groupName(t, groups.find((g) => g.id === member.group))}
       variant="sheet"
       media={<Avatar id={member.id} name={member.name} className="avatar--big" />}
       footer={

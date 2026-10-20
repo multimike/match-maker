@@ -3,11 +3,13 @@
 // ids come in through `env`, so the tests can play a whole evening with a seeded random.
 
 import { newEvening, planRound, recordHistory, recordRound, type Energy, type Player, type Pref } from '../engine/engine.ts';
-import { rateRound, startingRating, type Ratings } from '../engine/rating.ts';
+import { rateRound, type Ratings } from '../engine/rating.ts';
 import type { Random } from '../engine/random.ts';
 import {
+  GROUP_START,
   MAX_NAME,
   dayNumber,
+  groupStart,
   isHere,
   latestRound,
   localDate,
@@ -20,6 +22,7 @@ import {
   type Member,
   type Round,
   type Session,
+  type TrainingGroup,
 } from './model.ts';
 import { addTime, finishTimer, newTimer, pauseTimer, resumeTimer, startTimer } from './timer.ts';
 
@@ -38,6 +41,8 @@ export interface MemberInput {
   partnerShare: number;
 }
 
+export type GroupInput = Omit<TrainingGroup, 'id'>;
+
 export type Action =
   /** `id` lets the caller check the new member in straight away. */
   | { type: 'member/add'; member: MemberInput; id?: string }
@@ -50,6 +55,10 @@ export type Action =
   | { type: 'member/consent'; id: string }
   | { type: 'member/pref'; id: string; pref: Pref }
   | { type: 'members/import'; members: Member[] }
+  | { type: 'group/add'; group: GroupInput }
+  | { type: 'group/update'; id: Group; group: GroupInput }
+  /** The group's players move to `moveTo` first. */
+  | { type: 'group/delete'; id: Group; moveTo: Group }
   | { type: 'session/open'; courts: number; roundMinutes: number; softLimit?: number; friendly?: boolean }
   | { type: 'session/update'; courts?: number; roundMinutes?: number; softLimit?: number | null }
   | { type: 'session/close' }
@@ -76,7 +85,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         id: action.id ?? env.id(),
         name,
         group: action.member.group,
-        rating: startingRating(action.member.group),
+        rating: groupStart(state.groups, action.member.group),
         matches: 0,
         pref: action.member.pref,
         status: 'confirmed',
@@ -92,9 +101,7 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       const members = state.members.map((m) => {
         if (m.id !== action.id) return m;
         const { group, pref } = action.member;
-        // Before any rated match the rating is just the group's starting point.
-        const regrouped = m.matches === 0 && group !== m.group ? startingRating(group) : m.rating;
-        return { ...m, name, group, pref, rating: action.rating ?? regrouped };
+        return { ...m, name, group, pref, rating: action.rating ?? regrouped(state.groups, m, group) };
       });
       return { ...state, members: linkPartner(members, action.id, action.member.partnerId, action.member.partnerShare) };
     }
@@ -117,11 +124,13 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
       const name = action.name.trim().slice(0, MAX_NAME);
       // A request handled twice (two organiser devices) must not add the player twice.
       if (!name || state.members.some((m) => m.id === action.id)) return state;
+      // A group removed since the phone loaded the list: the first group instead.
+      const group = state.groups.some((g) => g.id === action.group) ? action.group : state.groups[0]?.id ?? 1;
       const member: Member = {
         id: action.id,
         name,
-        group: action.group,
-        rating: startingRating(action.group),
+        group,
+        rating: groupStart(state.groups, group),
         matches: 0,
         pref: action.pref,
         status: 'new',
@@ -129,6 +138,33 @@ export function reduce(state: AppState, action: Action, env: Env): AppState {
         createdAt: env.now,
       };
       return { ...state, members: [...state.members, member] };
+    }
+
+    case 'group/add': {
+      const group = cleanGroup(action.group);
+      if (!group.name) return state;
+      const id = Math.max(0, ...state.groups.map((g) => g.id)) + 1;
+      return { ...state, groups: [...state.groups, { id, ...group }] };
+    }
+
+    case 'group/update': {
+      const before = state.groups.find((g) => g.id === action.id);
+      if (!before) return state;
+      const group = { id: action.id, ...cleanGroup(action.group) };
+      // A name can only be left out for the two groups every club starts with.
+      if (!group.name && before.name) return state;
+      const groups = state.groups.map((g) => (g.id === action.id ? group : g));
+      // Players who haven't played a rated match yet start from the new starting rating.
+      const members = state.members.map((m) => (m.group === action.id && m.matches === 0 ? { ...m, rating: group.start } : m));
+      return { ...state, groups, members };
+    }
+
+    case 'group/delete': {
+      const { id, moveTo } = action;
+      if (id === moveTo || !state.groups.some((g) => g.id === id) || !state.groups.some((g) => g.id === moveTo)) return state;
+      const groups = state.groups.filter((g) => g.id !== id);
+      const members = state.members.map((m) => (m.group === id ? { ...m, group: moveTo, rating: regrouped(groups, m, moveTo) } : m));
+      return { ...state, groups, members };
     }
 
     case 'member/confirm':
@@ -324,6 +360,16 @@ function closeSession(state: AppState, now: number): AppState {
     closedAt: now,
     rounds: s.rounds.filter((r) => r.status === 'done').map(({ ratingsBefore: _gone, ...r }) => ({ ...r, players: [] })),
   }));
+}
+
+/** A player's rating in a new group: before any rated match it's just the group's starting point. */
+function regrouped(groups: TrainingGroup[], m: Member, group: Group): number {
+  return m.matches === 0 && group !== m.group ? groupStart(groups, group) : m.rating;
+}
+
+function cleanGroup(group: GroupInput): GroupInput {
+  const start = Math.round(Math.min(GROUP_START.max, Math.max(GROUP_START.min, group.start)));
+  return { name: group.name.trim().slice(0, MAX_NAME), start, ...(group.hideRating ? { hideRating: true } : {}) };
 }
 
 function withoutPartner(m: Member): Member {

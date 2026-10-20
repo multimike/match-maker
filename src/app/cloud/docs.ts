@@ -1,6 +1,7 @@
 // How the app's data maps onto Firestore documents:
 //
 //   club/members    all members (players read it too: names, ratings)
+//   club/groups     the training groups (players read it too, to sign up)
 //   club/history    when each pair last met (organisers only)
 //   sessions/{id}   one per evening, open or closed (organisers only)
 //   live/current    what phones see of tonight (see live.ts)
@@ -10,9 +11,10 @@
 // Only fields that a query needs sit next to it. No Firebase imports, so the tests can use it.
 
 import { liveView, type LiveView } from '../live.ts';
-import { emptyState, type AppState, type Member, type Session } from '../model.ts';
+import { emptyState, type AppState, type Member, type Session, type TrainingGroup } from '../model.ts';
 
 export const MEMBERS = 'club/members';
+export const GROUPS = 'club/groups';
 export const HISTORY = 'club/history';
 export const LIVE = 'live/current';
 export const SESSIONS = 'sessions';
@@ -30,6 +32,7 @@ export interface DocData {
 export function toDocs(state: AppState): Map<string, DocData> {
   const docs = new Map<string, DocData>([
     [MEMBERS, { json: JSON.stringify(state.members) }],
+    [GROUPS, { json: JSON.stringify(state.groups) }],
     [HISTORY, { json: JSON.stringify(state.history) }],
     [LIVE, { json: JSON.stringify(liveView(state)) }],
   ]);
@@ -52,12 +55,14 @@ export function changedDocs(before: Map<string, DocData>, after: Map<string, Doc
 export function fromDocs(json: Map<string, string>, parse: (path: string, text: string) => unknown = (_, text) => JSON.parse(text)): AppState {
   const state = emptyState();
   const members = json.get(MEMBERS);
+  const groups = json.get(GROUPS);
   const history = json.get(HISTORY);
   const sessions: Session[] = [];
   for (const [path, text] of json) if (path.startsWith(`${SESSIONS}/`)) sessions.push(parse(path, text) as Session);
   return {
     ...state,
     members: members ? (parse(MEMBERS, members) as Member[]) : state.members,
+    groups: groups ? (parse(GROUPS, groups) as TrainingGroup[]) : state.groups,
     history: history ? (parse(HISTORY, history) as AppState['history']) : state.history,
     sessions: sessions.sort((a, b) => a.openedAt - b.openedAt),
   };

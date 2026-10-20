@@ -1,12 +1,13 @@
-// Adding and editing a member: name, usual group, singles/doubles preference, competition
+// Adding and editing a member: name, training group, singles/doubles preference, competition
 // partner, and (for existing members) a rating nudge.
 
 import { useId, useState } from 'react';
 import type { Pref } from '../../engine/engine.ts';
-import { RATING, isProvisional } from '../../engine/rating.ts';
+import { isProvisional } from '../../engine/rating.ts';
+import { GroupChoice } from '../components/GroupChoice.tsx';
 import { PrefIcon } from '../components/PrefIcon.tsx';
 import { Dialog, Field, Section, Segmented, SettingRow, useConfirm } from '../components/ui.tsx';
-import { PARTNER_SHARES, type Group, type Member } from '../model.ts';
+import { PARTNER_SHARES, groupStart, hidesRating, type Group, type Member } from '../model.ts';
 import type { MemberInput } from '../state.ts';
 import { newId, useAppState, useDispatch } from '../store.ts';
 import { useStrings } from '../strings.ts';
@@ -27,9 +28,9 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
   const t = useStrings();
   const dispatch = useDispatch();
   const confirm = useConfirm();
-  const { members } = useAppState();
+  const { members, groups } = useAppState();
   const [name, setName] = useState(member?.name ?? initialName);
-  const [group, setGroup] = useState<Group>(member?.group ?? 1);
+  const [group, setGroup] = useState<Group>(member?.group ?? groups[0]?.id ?? 1);
   const [pref, setPref] = useState<Pref>(member?.pref ?? 'either');
   const [partnerId, setPartnerId] = useState<string | null>(member?.partnerId ?? null);
   const [share, setShare] = useState(member?.partnerShare ?? 0.5);
@@ -103,13 +104,8 @@ export function MemberForm({ member, name: initialName = '', onClose, onAdded }:
           <input id={`${formId}-name`} className="input" value={name} onChange={(e) => setName(e.target.value)} data-autofocus={member ? undefined : true} required maxLength={40} autoComplete="off" />
         </Field>
 
-        <Field label={t.form.group} hint={t.form.groupHint(RATING.start[1], RATING.start[2])}>
-          <Segmented
-            label={t.form.group}
-            value={group}
-            onChange={setGroup}
-            options={[1, 2].map((g) => ({ value: g as Group, label: t.members.groupN(g) }))}
-          />
+        <Field label={t.form.group} hint={t.form.groupHint(groupStart(groups, group), hidesRating(groups, { group }))} htmlFor={groups.length > 3 ? `${formId}-group` : undefined}>
+          <GroupChoice id={`${formId}-group`} label={t.form.group} groups={groups} value={group} onChange={setGroup} />
         </Field>
 
         <Field label={t.form.prefers}>

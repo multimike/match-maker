@@ -596,6 +596,10 @@ html:has(dialog[open]) {
     flex-wrap: nowrap;
   }
 
+  .dialog-body .field .stepper {
+    justify-self: start;
+  }
+
   .dialog-body .field .segment {
     flex: 1 1 0;
     flex-direction: column;
