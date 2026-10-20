@@ -26,8 +26,10 @@ import { clock, remaining } from '../timer.ts';
 import { MemberForm } from './MemberForm.tsx';
 
 export const ENERGY_EMOJI: Record<Energy, string> = { challenge: '💪', normal: '⚖️', easy: '😌' };
+/** Resting: in a round, and skipping the next one. */
 export const REST_EMOJI = '💤';
-export const SKIP_EMOJI = '⏸️';
+/** Happy to sit out first. */
+export const REST_OK_EMOJI = '🪑';
 
 export function Tonight() {
   const state = useAppState();
@@ -220,8 +222,8 @@ function OpenEvening({ session }: { session: Session }) {
                     <span className="tile-badges">
                       {status === 'left' && <span className="tile-left">{t.tonight.left}</span>}
                       {isHere(c) && c.energy !== 'normal' && <span title={t.energy[c.energy]}>{ENERGY_EMOJI[c.energy]}</span>}
-                      {isHere(c) && c.restOk && <span title={t.restOk}>{REST_EMOJI}</span>}
-                      {isHere(c) && c.skip && <span title={t.skip}>{SKIP_EMOJI}</span>}
+                      {isHere(c) && c.restOk && <span title={t.restOk}>{REST_OK_EMOJI}</span>}
+                      {isHere(c) && c.skip && <span title={t.skip}>{REST_EMOJI}</span>}
                     </span>
                   </button>
                 </li>
@@ -351,12 +353,12 @@ function PlayerSheet({ member, session, onClose, onEdit }: { member: Member; ses
         {c.energy === 'easy' && (
           <label className="toggle">
             <input type="checkbox" checked={c.restOk} onChange={(e) => update({ restOk: e.target.checked })} />
-            <span>{REST_EMOJI} {t.restOk}</span>
+            <span>{REST_OK_EMOJI} {t.restOk}</span>
           </label>
         )}
         <label className="toggle">
           <input type="checkbox" checked={c.skip} onChange={(e) => update({ skip: e.target.checked })} />
-          <span>{SKIP_EMOJI} {t.skip}</span>
+          <span>{REST_EMOJI} {t.skip}</span>
         </label>
       </div>
       <div className="dialog-more">

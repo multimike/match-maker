@@ -25,7 +25,7 @@ import { pickWinner, winnerFromScore } from '../results.ts';
 import { newId } from '../store.ts';
 import { useStrings } from '../strings.ts';
 import { clock, remaining, timerPhase } from '../timer.ts';
-import { ENERGY_EMOJI, REST_EMOJI, SKIP_EMOJI } from './Tonight.tsx';
+import { ENERGY_EMOJI, REST_EMOJI, REST_OK_EMOJI } from './Tonight.tsx';
 
 /** The member id this phone just signed up as, until the organiser's device has added them. */
 const SIGNED_UP_KEY = 'matchmaker.signedUp';
@@ -421,7 +421,7 @@ function CheckIn({ client, me, session, left }: { client: PlayerClient; me: Memb
       {energy === 'easy' && (
         <label className="toggle">
           <input type="checkbox" checked={restOk} onChange={(e) => setRestOk(e.target.checked)} />
-          <span>{REST_EMOJI} {t.restOk}</span>
+          <span>{REST_OK_EMOJI} {t.restOk}</span>
         </label>
       )}
       <button type="button" className="button button--primary button--huge button--wide" disabled={sentAt !== null} onClick={send}>
@@ -565,12 +565,12 @@ function TonightCard({ client, me, checkIn }: { client: PlayerClient; me: Member
       {shown.energy === 'easy' && (
         <label className="toggle">
           <input type="checkbox" checked={shown.restOk} onChange={(e) => update({ restOk: e.target.checked })} />
-          <span>{REST_EMOJI} {t.restOk}</span>
+          <span>{REST_OK_EMOJI} {t.restOk}</span>
         </label>
       )}
       <label className="toggle">
         <input type="checkbox" checked={shown.skip} onChange={(e) => update({ skip: e.target.checked })} />
-        <span>{SKIP_EMOJI} {t.skip}</span>
+        <span>{REST_EMOJI} {t.skip}</span>
       </label>
       <button
         type="button"
