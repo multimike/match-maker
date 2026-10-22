@@ -144,6 +144,11 @@ test('the live view shows phones tonight without the engine bookkeeping', () => 
   const [loser] = round.courts[0].sides[1];
   expect(live.round?.changes?.[winner]).toBeGreaterThan(0);
   expect(live.round?.changes?.[loser]).toBeLessThan(0);
+
+  // Phones learn which groups are expected tonight, to list those players first.
+  expect(live.groups).toBeUndefined();
+  o.do({ type: 'session/update', groups: [2] });
+  expect(liveView(o.state).session?.groups).toEqual([2]);
 });
 
 test('the club fits in documents and comes back exactly, writing only what changed', () => {

@@ -330,9 +330,29 @@
 }
 
 .name-text {
+  display: grid;
+  min-width: 0;
+}
+
+.name-name,
+.name-group {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* The training group under the name, so two players with the same name can tell which is them. */
+.name-group {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.phone-group {
+  margin-top: -10px;
+  color: var(--ink-soft);
+  font-weight: 600;
 }
 
 /* ---------- You ---------- */

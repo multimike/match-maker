@@ -4,7 +4,7 @@
 // bookkeeping is in here.
 
 import type { Court, Energy } from '../engine/engine.ts';
-import { isHere, latestRound, openSession, type AppState, type CourtResult, type RoundStatus, type Timer } from './model.ts';
+import { isHere, latestRound, openSession, type AppState, type CourtResult, type Group, type RoundStatus, type Timer } from './model.ts';
 
 export interface LiveCheckIn {
   energy: Energy;
@@ -37,6 +37,8 @@ export interface LiveSession {
   roundMinutes: number;
   /** Results don't change ratings tonight. */
   friendly?: boolean;
+  /** The training groups expected tonight, listed first on phones; missing means everyone. */
+  groups?: Group[];
   checkIns: Record<string, LiveCheckIn>;
   round?: LiveRound;
 }
@@ -57,6 +59,7 @@ export function liveView(state: AppState): LiveView {
       courts: session.courts,
       roundMinutes: session.roundMinutes,
       ...(session.friendly ? { friendly: true } : {}),
+      ...(session.groups ? { groups: session.groups } : {}),
       checkIns: Object.fromEntries(Object.entries(session.checkIns).map(([id, c]) => [id, {
         energy: c.energy,
         restOk: c.restOk,

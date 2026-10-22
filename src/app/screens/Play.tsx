@@ -16,10 +16,10 @@ import { CourtView, type Tag } from '../components/CourtView.tsx';
 import { PrefIcon } from '../components/PrefIcon.tsx';
 import { Confetti, Shuttle } from '../components/Shuttle.tsx';
 import { Field, Segmented, useConfirm } from '../components/ui.tsx';
-import { formatDate, signed } from '../format.ts';
+import { formatDate, groupName, signed } from '../format.ts';
 import { joinCodeOf, useNow } from '../hooks.ts';
 import type { LiveCheckIn, LiveRound, LiveSession } from '../live.ts';
-import { MAX_NAME, hidesRating, ranking, type CourtResult, type Group, type Member, type TrainingGroup } from '../model.ts';
+import { MAX_NAME, hidesRating, isExpected, ranking, type CourtResult, type Group, type Member, type TrainingGroup } from '../model.ts';
 import { setPrefs, usePrefs, type Lang } from '../prefs.ts';
 import { pickWinner, winnerFromScore } from '../results.ts';
 import { newId } from '../store.ts';
@@ -84,7 +84,7 @@ function PhoneBody({ client }: { client: PlayerClient }) {
   const me = state.members.find((m) => m.id === state.memberId);
   if (!me) {
     if (state.memberId && sessionStorage.getItem(SIGNED_UP_KEY) === state.memberId) return <Waiting client={client} />;
-    return <WhoAreYou client={client} members={state.members} />;
+    return <WhoAreYou client={client} members={state.members} groups={state.groups} session={state.live.session} />;
   }
   return <Home client={client} me={me} state={state} />;
 }
@@ -143,15 +143,30 @@ function Unreachable() {
   );
 }
 
-function WhoAreYou({ client, members }: { client: PlayerClient; members: Member[] }) {
+interface WhoAreYouProps {
+  client: PlayerClient;
+  members: Member[];
+  groups: TrainingGroup[];
+  session: LiveSession | null;
+}
+
+/** Picking your name, the first time on a phone. The groups expected tonight come first. */
+function WhoAreYou({ client, members, groups, session }: WhoAreYouProps) {
   const t = useStrings();
   const [query, setQuery] = useState('');
+  const [everyone, setEveryone] = useState(false);
   const [step, setStep] = useState<Member | 'new' | null>(null);
-  if (step === 'new') return <NewPlayer client={client} groups={client.getState().groups} name={query.trim()} onBack={() => setStep(null)} />;
-  if (step) return <ThatsMe client={client} member={step} onBack={() => setStep(null)} />;
+  const nameOf = (m: Member) => groupName(t, groups.find((g) => g.id === m.group));
+  if (step === 'new') return <NewPlayer client={client} groups={groups} name={query.trim()} onBack={() => setStep(null)} />;
+  if (step) return <ThatsMe client={client} member={step} group={nameOf(step)} onBack={() => setStep(null)} />;
 
   const q = query.trim().toLowerCase();
-  const shown = [...members].sort((a, b) => a.name.localeCompare(b.name, t.locale)).filter((m) => !q || m.name.toLowerCase().includes(q));
+  // Tonight's groups, and anyone already checked in tonight. A search looks through everyone.
+  const listed = (m: Member) => !session || isExpected(session, m) || session.checkIns[m.id] !== undefined;
+  const matches = (m: Member) => m.name.toLowerCase().includes(q) || nameOf(m).toLowerCase().includes(q);
+  const sorted = [...members].sort((a, b) => a.name.localeCompare(b.name, t.locale));
+  const shown = q ? sorted.filter(matches) : everyone ? sorted : sorted.filter(listed);
+  const unlisted = q || everyone ? 0 : members.length - shown.length;
   return (
     <section className="phone-card">
       <h1 className="phone-title">{t.phone.whoTitle}</h1>
@@ -162,11 +177,19 @@ function WhoAreYou({ client, members }: { client: PlayerClient; members: Member[
             <li key={m.id}>
               <button type="button" className="name" onClick={() => setStep(m)}>
                 <Avatar id={m.id} name={m.name} />
-                <span className="name-text">{m.name}</span>
+                <span className="name-text">
+                  <span className="name-name">{m.name}</span>
+                  <span className="name-group">{nameOf(m)}</span>
+                </span>
               </button>
             </li>
           ))}
         </ul>
+      )}
+      {unlisted > 0 && (
+        <button type="button" className="link-button" onClick={() => setEveryone(true)}>
+          {t.tonight.showEveryone(unlisted)}
+        </button>
       )}
       <button type="button" className="button button--quiet button--wide" onClick={() => setStep('new')}>
         {q ? t.phone.newNamed(query.trim()) : t.phone.imNew}
@@ -207,7 +230,7 @@ function Consent({ checked, onChange }: { checked: boolean; onChange: (checked: 
 }
 
 /** An existing member on this phone for the first time. */
-function ThatsMe({ client, member, onBack }: { client: PlayerClient; member: Member; onBack: () => void }) {
+function ThatsMe({ client, member, group, onBack }: { client: PlayerClient; member: Member; group: string; onBack: () => void }) {
   const t = useStrings();
   const [pref, setPref] = useState<Pref>(member.pref);
   const needsConsent = member.consentAt === undefined;
@@ -235,6 +258,7 @@ function ThatsMe({ client, member, onBack }: { client: PlayerClient; member: Mem
     <section className="phone-card phone-card--center">
       <Avatar id={member.id} name={member.name} className="avatar--huge" />
       <h1 className="phone-title">{t.phone.hi(member.name)}</h1>
+      <p className="phone-group">{group}</p>
       <PrefChoice value={pref} onChange={setPref} />
       {needsConsent && <Consent checked={consent} onChange={setConsent} />}
       <button type="button" className="button button--primary button--big button--wide" disabled={busy || (needsConsent && !consent)} onClick={confirm}>
